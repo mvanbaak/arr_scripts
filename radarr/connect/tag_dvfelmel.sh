@@ -119,14 +119,14 @@ movie_has_tag() {
 extract_moviefile_rpu_info() {
     local _rpu_summary _rpu_temp_file
 
-    _rpu_temp_file=$(mktemp -t radarr_rpu_info)
 
     if [ ! -f "$1" ]
     then
         echo "ERROR: Movie file '$1' not found, Exiting." >&2
-        exit 127
+        return 127
     fi
 
+    _rpu_temp_file=$(mktemp -t radarr_rpu_info)
     if ! ffmpeg \
         -loglevel error \
         -t 10 \
@@ -134,7 +134,7 @@ extract_moviefile_rpu_info() {
         -c:v copy \
         -bsf hevc_mp4toannexb \
         -f hevc \
-        - 2>/dev/null | \
+        - < /dev/null 2>/dev/null | \
         dovi_tool \
         extract-rpu \
         --input - \
@@ -261,7 +261,7 @@ tag_movie() {
         # We can assume that the file has no RPU data, so no MEL/FEL, so delete the tag if its there
         remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
         remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-        exit 127
+        return 1
     fi
 
     if echo "${rpu_info}" | grep -qi "FEL"
@@ -277,6 +277,18 @@ tag_movie() {
         remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
         remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
     fi
+}
+
+tag_all_movies() {
+    curl \
+        -s \
+        -H "Accept-Encoding: application/json" \
+        "${RADARR_API_URL}/movie?apikey=${RADARR_API_KEY}" | \
+    jq -r 'sort_by(.id)[] | select(.movieFile != null) | "\(.id) \(.movieFile.path)"' | \
+    while read -r id file; do
+        echo "DEBUG: Tagging movie '${id}' with path '${file}'"
+        tag_movie "$id" "$file"
+    done
 }
 
 # main script flow
@@ -312,6 +324,13 @@ case "${EVENT_TYPE}" in
     Download)
         echo "DEBUG: Got event ${EVENT_TYPE}, handling"
         tag_movie "${MOVIE_ID}" "${MOVIE_FILE}"
+        ;;
+    [Bb]ulk)
+        # This event does not exist in radarr, but can be triggered
+        # by a cli invokation of this script. eg
+        # ./tag_dvfelmel.sh bulk
+        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        tag_all_movies
         ;;
     *)
         echo "ERROR: Got event ${EVENT_TYPE} that cannot be handled, exiting" >&2
