@@ -249,6 +249,36 @@ remove_tag_from_movie() {
     fi
 }
 
+tag_movie() {
+    local _movie_id _movie_file
+
+    _movie_id="$1"
+    _movie_file="$2"
+
+    if ! rpu_info=$(extract_moviefile_rpu_info "${_movie_file}")
+    then
+        echo "ERROR: Something went wrong trying to extract the needed information from the movie file" >&2
+        # We can assume that the file has no RPU data, so no MEL/FEL, so delete the tag if its there
+        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        exit 127
+    fi
+
+    if echo "${rpu_info}" | grep -qi "FEL"
+    then
+        echo "DEBUG: FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+    elif echo "${rpu_info}" | grep -qi "MEL"
+    then
+        echo "DEBUG: MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+    else
+        echo "DEBUG: No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+    fi
+}
+
 # main script flow
 check_needed_executables
 
@@ -281,32 +311,10 @@ case "${EVENT_TYPE}" in
         ;;
     Download)
         echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        tag_movie "${MOVIE_ID}" "${MOVIE_FILE}"
         ;;
     *)
         echo "ERROR: Got event ${EVENT_TYPE} that cannot be handled, exiting" >&2
         exit 4
         ;;
 esac
-
-if ! rpu_info=$(extract_moviefile_rpu_info "${MOVIE_FILE}")
-then
-    echo "ERROR: Something went wrong trying to extract the needed information from the movie file" >&2
-    # We can assume that the file has no RPU data, so no MEL/FEL, so delete the tag if its there
-    remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
-    remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
-    exit 127
-fi
-
-if echo "${rpu_info}" | grep -qi "FEL"
-then
-    echo "DEBUG: FEL detected for movie (id: ${MOVIE_ID}, file: ${MOVIE_FILE})"
-    add_tag_to_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
-elif echo "${rpu_info}" | grep -qi "MEL"
-then
-    echo "DEBUG: MEL detected for movie (id: ${MOVIE_ID}, file: ${MOVIE_FILE})"
-    add_tag_to_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
-else
-    echo "DEBUG: No FEL nor MEL detected for movie (id: ${MOVIE_ID}, file: ${MOVIE_FILE})"
-    remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
-    remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
-fi
