@@ -1,0 +1,7 @@
+# SAMPLE configuration file
+# Move this file to 'scripts.conf' in the same directory
+# as the connect/custom/trigger scripts
+
+# Radarr info used to talk to its api
+RADARR_API_URL="http://ip.of.radarr:7878/api/v3"
+RADARR_API_KEY="your_radarr_api_key"
