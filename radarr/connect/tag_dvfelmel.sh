@@ -116,7 +116,7 @@ movie_has_tag() {
     jq -e ".tags | index(${_tag_id})" >/dev/null
 }
 
-extract_moviefile_rpu_info() {
+extract_moviefile_rpu_summary() {
     local _rpu_summary _rpu_temp_file
 
 
@@ -260,12 +260,12 @@ remove_tag_from_movie() {
 }
 
 tag_movie() {
-    local _movie_id _movie_file
+    local _movie_id _movie_file _rpu_summary
 
     _movie_id="$1"
     _movie_file="$2"
 
-    if ! rpu_info=$(extract_moviefile_rpu_info "${_movie_file}")
+    if ! _rpu_summary=$(extract_moviefile_rpu_summary "${_movie_file}")
     then
         echo "ERROR: Something went wrong trying to extract the needed information from the movie file" >&2
         # We can assume that the file has no RPU data, so no MEL/FEL, so delete the tag if its there
@@ -274,13 +274,15 @@ tag_movie() {
         return 1
     fi
 
-    if echo "${rpu_info}" | grep -qi "FEL"
+    if echo "${_rpu_summary}" | grep -q "Profile: 7 (FEL)"
     then
         echo "DEBUG: FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        echo "${_rpu_summary}"
         add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-    elif echo "${rpu_info}" | grep -qi "MEL"
+    elif echo "${_rpu_summary}" | grep -q "Profile: 7 (MEL)"
     then
         echo "DEBUG: MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        echo "${_rpu_summary}"
         add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
     else
         echo "DEBUG: No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
