@@ -126,7 +126,7 @@ extract_moviefile_rpu_summary() {
         return 127
     fi
 
-    _rpu_temp_file=$(mktemp -t radarr_rpu_info)
+    _rpu_temp_file=$(mktemp)
     if ! ffmpeg \
         -loglevel error \
         -t 10 \
