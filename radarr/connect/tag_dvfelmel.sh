@@ -135,7 +135,7 @@ extract_moviefile_rpu_info() {
         -bsf hevc_mp4toannexb \
         -f hevc \
         - < /dev/null 2>/dev/null | \
-        dovi_tool \
+    dovi_tool \
         extract-rpu \
         --input - \
         --rpu-out "${_rpu_temp_file}" \
@@ -195,13 +195,18 @@ add_tag_to_movie() {
     if ! movie_has_tag "${_movie_id}" "${_tag_id}"
     then
         _payload=$(printf '{"movieIds": [%s], "tags": [%s], "applyTags": "add"}' "${_movie_id}" "${_tag_id}")
-        _add_tag_response=$(curl \
+        if ! _add_tag_response=$(curl \
             -s \
             -X PUT \
             -H "Accept-Encoding: application/json" \
             -H "Content-Type: application/json" \
             -d "${_payload}" \
             "${RADARR_API_URL}/movie/editor?apikey=${RADARR_API_KEY}")
+        then
+            echo "ERROR: Payload: ${_payload}" >&2
+            echo "ERROR: Response: ${_add_tag_response}" >&2
+            return 1
+        fi
     fi
 }
 
@@ -239,13 +244,18 @@ remove_tag_from_movie() {
     if movie_has_tag "${_movie_id}" "${_tag_id}"
     then
         _payload=$(printf '{"movieIds": [%s], "tags": [%s], "applyTags": "remove"}' "${_movie_id}" "${_tag_id}")
-        _remove_tag_response=$(curl \
+        if ! _remove_tag_response=$(curl \
             -s \
             -X PUT \
             -H "Accept-Encoding: application/json" \
             -H "Content-Type: application/json" \
             -d "${_payload}" \
             "${RADARR_API_URL}/movie/editor?apikey=${RADARR_API_KEY}")
+        then
+            echo "ERROR: Payload: ${_payload}" >&2
+            echo "ERROR: Response: ${_add_tag_response}" >&2
+            return 1
+        fi
     fi
 }
 
