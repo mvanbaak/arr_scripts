@@ -290,14 +290,19 @@ tag_movie() {
 }
 
 tag_all_movies() {
+    local _counter
+    _counter=0
     curl \
         -s \
         -H "Accept-Encoding: application/json" \
         "${RADARR_API_URL}/movie?apikey=${RADARR_API_KEY}" | \
     jq -r 'sort_by(.id)[] | select(.movieFile != null) | "\(.id) \(.movieFile.path)"' | \
     while read -r id file; do
-        echo "DEBUG: Tagging movie '${id}' with path '${file}'"
+        _counter=$((_counter+=1))
+        echo "DEBUG: (${_counter}) Tagging movie '${id}' with path '${file}'"
         tag_movie "$id" "$file"
+        # lame, but be nice te our radarr api
+        sleep 0.5
     done
 }
 
