@@ -9,8 +9,13 @@
 # file does not have mel nor fel, remove the tag
 #
 # Requirements:
-# * ffmpeg (tested with 6.1.2
+# * sh (tested with sh from FreeBSD base FreeBSD 14.1)
+# * mktemp (tested with mktemp from FreeBSD base, FreeBSD 14.1)
+# * curl (tested with 8.10.1)
 # * dovi_tool (tested with 2.1.2
+# * ffmpeg (tested with 6.1.2
+# * grep (tested with BSD grep 2.6.0-FreeBSD)
+# * jq (tested with 1.7.1)
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
 #
@@ -44,7 +49,7 @@ MOVIE_ID="${radarr_movie_id:-0}"
 MOVIE_FILE="${radarr_moviefile_path:-""}"
 
 # global variables, dont edit
-NEEDED_EXECUTABLES="curl jq ffmpeg dovi_tool grep mktemp"
+NEEDED_EXECUTABLES="curl dovi_tool ffmpeg grep jq mktemp"
 
 check_needed_executables() {
     for executable in ${NEEDED_EXECUTABLES}
