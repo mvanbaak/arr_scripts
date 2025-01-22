@@ -23,6 +23,10 @@
 #   * Initial implementation
 #     * ffmpeg/dovi_tools output parsing taken from jpalenz77's script
 #     * radarr tag functions taken from jpalenz77's script
+#
+# For information on how to get this script to work inside a radarr docker container please
+# have a look at https://discord.com/channels/492590071455940612/1327957617661972510/1327957617661972510
+# The fine folks in the TRaSH-Guides discord have it figured out. Thanks for sharing!
 
 # Configuration
 # Read from file if found
