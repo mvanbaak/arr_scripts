@@ -287,11 +287,13 @@ tag_movie() {
     then
         echo "DEBUG: FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
         echo "${_rpu_summary}"
+        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
         add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
     elif echo "${_rpu_summary}" | grep -q "Profile: 7 (MEL)"
     then
         echo "DEBUG: MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
         echo "${_rpu_summary}"
+        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
         add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
     else
         echo "DEBUG: No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
