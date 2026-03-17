@@ -1,9 +1,10 @@
 # arr_scripts
 
-# 2026-03-02: Archived. Use https://github.com/TRaSH-/Starr-taggers#radarr-dv-hdr-tagarr instead.
-# Info, questions, bugs, feature requests and support are no longer handeld by me.
-
 Random collection of scripts and configuration files used by *arr tools in my setup
+
+## Looking for more extensive Radarr taggers?
+
+If you need more features or better maintained taggers, check out the [Radarr DV HDR Tagarr](https://github.com/TRaSH-/Starr-taggers#radarr-dv-hdr-tagarr) from TRaSH-. It offers more extensive functionality and active development.
 
 ## radarr/connect
 
