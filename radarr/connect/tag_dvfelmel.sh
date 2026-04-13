@@ -220,7 +220,7 @@ add_tag_to_movie() {
 }
 
 remove_tag_from_movie() {
-    local _movie_id _tag_label _payload _remove_tag_response
+    local _movie_id _tag_label _tag_id _payload _remove_tag_response
 
     # first argument is the movie id.
     # We support id only
@@ -262,7 +262,7 @@ remove_tag_from_movie() {
             "${RADARR_API_URL}/movie/editor?apikey=${RADARR_API_KEY}")
         then
             echo "ERROR: Payload: ${_payload}" >&2
-            echo "ERROR: Response: ${_add_tag_response}" >&2
+            echo "ERROR: Response: ${_remove_tag_response}" >&2
             return 1
         fi
     fi
