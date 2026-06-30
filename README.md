@@ -22,7 +22,7 @@ Script to be run with:
 - On Movie File Delete
 
 Script will tag the movie with `fel` or `mel` if the file
-contains a Dolby Vision Enhancement Layer, and wether the EL
+contains a Dolby Vision Enhancement Layer, and whether the EL
 is minimal or full.
 If the imported file has no Enhancement Layer, and the movie has one of
 those two tags, it will be removed.

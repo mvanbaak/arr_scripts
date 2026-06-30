@@ -3,9 +3,9 @@
 # shellcheck disable=SC3043
 
 # Script to tag newly imported/upgraded movies
-# with 'fel' or 'mel' depending on their DolbyVision
+# with 'fel' or 'mel' depending on their Dolby Vision
 # profile 7 mel or fel availability.
-# When a movie in radarr already has this tag, but te new
+# When a movie in radarr already has this tag, but the new
 # file does not have mel nor fel, remove the tag
 #
 # Requirements:
