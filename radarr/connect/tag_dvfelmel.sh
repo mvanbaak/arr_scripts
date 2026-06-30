@@ -19,6 +19,9 @@
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
 #
+# Version 0.2.0 (Released 2026-06-30)
+#   * Cache tag ids to reduce api calls
+#
 # Version 0.1.0 (Released 2026-06-30)
 #   * Add bulk event type to tag all movies in radarr
 #   * Move main logic into functions for reuse
@@ -70,6 +73,7 @@ MOVIE_FILE="${radarr_moviefile_path:-""}"
 
 # global variables, dont edit
 NEEDED_EXECUTABLES="curl dovi_tool ffmpeg grep jq mktemp"
+_TAG_CACHE=""
 
 check_needed_executables() {
     for executable in ${NEEDED_EXECUTABLES}
@@ -82,13 +86,21 @@ check_needed_executables() {
     done
 }
 
-get_tag_id_by_label() {
-    curl \
+_load_tag_cache() {
+    _TAG_CACHE=$(curl \
         -s \
         -H "Accept-Encoding: application/json" \
         -H "X-Api-Key: ${RADARR_API_KEY}" \
-        "${RADARR_API_URL}/tag" | \
-    jq --arg t "$1" '[.[] | select(.label == $t)] | .[0].id // empty'
+        "${RADARR_API_URL}/tag")
+}
+
+get_tag_id_by_label() {
+    if [ -z "${_TAG_CACHE}" ]
+    then
+        _load_tag_cache
+    fi
+    printf '%s' "${_TAG_CACHE}" | \
+    jq -r --arg t "$1" '[.[] | select(.label == $t)] | .[0].id // empty'
 }
 
 create_tag() {
@@ -234,6 +246,8 @@ add_tag_to_movie() {
     if [ -z "${_tag_id}" ]
     then
         _tag_id=$(create_tag "$2")
+        # invalidate cache so subsequent label lookups find the new tag
+        _TAG_CACHE=""
     fi
 
     if ! movie_has_tag "${_movie_id}" "${_tag_id}"
