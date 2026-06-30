@@ -172,6 +172,12 @@ extract_moviefile_rpu_summary() {
         rm "${_rpu_temp_file}"
     fi
 
+    if [ -z "${_rpu_summary}" ]
+    then
+        echo "ERROR: No RPU data extracted from movie file '$1'" >&2
+        return 1
+    fi
+
     echo "${_rpu_summary}"
 }
 
