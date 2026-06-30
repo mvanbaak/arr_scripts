@@ -4,7 +4,10 @@
 
 This repository contains shell scripts and configuration files for Radarr automation, primarily focused on tagging movies with Dolby Vision metadata (FEL/MEL tags).
 
-**Primary Script:** `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
+**Scripts:**
+- `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
+- `radarr/connect/download_trailer.sh` - Downloads official trailers from TMDB/YouTube for movies in Radarr.
+- `radarr/connect/scripts_common.sh` - Shared library sourced by both scripts (config loading, executable checks, Radarr API helpers).
 
 ---
 
@@ -40,6 +43,23 @@ shellcheck -e SC3043 radarr/connect/tag_dvfelmel.sh
 ```
 
 Event types: `Test`, `MovieFileDelete`, `Download`, `Bulk`
+
+**Run the trailer script in test mode:**
+```bash
+./radarr/connect/download_trailer.sh
+```
+
+**Run in bulk mode (process all movies):**
+```bash
+./radarr/connect/download_trailer.sh bulk
+```
+
+**Direct invocation with arguments:**
+```bash
+./radarr/connect/download_trailer.sh <event_type> <movie_id> [movie_path]
+```
+
+Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
 
 ### Testing
 
@@ -207,22 +227,36 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 radarr/connect/
-  tag_dvfelmel.sh      # Main script
+  scripts_common.sh    # Shared library (sourced by both scripts)
+  tag_dvfelmel.sh      # Dolby Vision FEL/MEL tagging script
+  download_trailer.sh  # Trailer download script
   scripts.conf.sample  # Sample configuration
   scripts.conf         # Actual configuration (not in git)
+
+docs/
+  cookie-extraction.md  # Guide for exporting YouTube cookies for yt-dlp
 ```
 
 ---
 
 ## Dependencies
 
-Required executables (checked at runtime):
+Required executables for `tag_dvfelmel.sh` (checked at runtime):
 - curl
 - dovi_tool
 - ffmpeg
 - grep
 - jq
 - mktemp
+
+Required executables for `download_trailer.sh` (checked at runtime):
+- curl
+- cut
+- jq
+- mkdir
+- mktemp
+- tr
+- yt-dlp
 
 ---
 
