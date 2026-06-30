@@ -140,6 +140,8 @@ extract_moviefile_rpu_summary() {
     fi
 
     _rpu_temp_file=$(mktemp)
+    # shellcheck disable=SC2064
+    trap 'rm -f "${_rpu_temp_file}"' EXIT INT TERM
     ffmpeg \
         -loglevel error \
         -t 10 \
@@ -170,7 +172,7 @@ extract_moviefile_rpu_summary() {
         _rpu_summary=""
     fi
 
-    # remove temp filee
+    # remove temp file
     if [ -f "${_rpu_temp_file}" ]
     then
         rm "${_rpu_temp_file}"
@@ -179,9 +181,11 @@ extract_moviefile_rpu_summary() {
     if [ -z "${_rpu_summary}" ]
     then
         echo "ERROR: No RPU data extracted from movie file '$1'" >&2
+        trap - EXIT INT TERM
         return 1
     fi
 
+    trap - EXIT INT TERM
     echo "${_rpu_summary}"
 }
 
