@@ -117,7 +117,7 @@ get_tmdb_trailers() {
     fi
 
     printf '%s' "${_response}" | \
-    jq -r '.results[] | select(.type == "Trailer" and .official == true and .site == "YouTube") | "\(.key)|\(.name | gsub("\\|"; "_"))|\(.iso_639_1)"'
+    jq -r '.results[] | select(.type == "Trailer" and .official == true and .site == "YouTube") | "\(.key)|\(.name | gsub("\\|"; "_"))|\(.iso_639_1 // empty)"'
 }
 
 # Sanitize a string for use as a filename
