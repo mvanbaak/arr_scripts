@@ -47,48 +47,48 @@ MOVIE_PATH="${radarr_movie_path:-""}"
 # Map ISO 639-2 (3-letter) to ISO 639-1 (2-letter) for common languages
 lang_to_iso639_1() {
     case "$1" in
-        eng) echo "en" ;;
-        por) echo "pt" ;;
-        jpn) echo "ja" ;;
-        fra|fre) echo "fr" ;;
-        deu|ger) echo "de" ;;
-        ita) echo "it" ;;
-        spa) echo "es" ;;
-        kor) echo "ko" ;;
-        chi|zho) echo "zh" ;;
-        rus) echo "ru" ;;
-        hin) echo "hi" ;;
-        ara) echo "ar" ;;
-        tur) echo "tr" ;;
-        nld|dut) echo "nl" ;;
-        swe) echo "sv" ;;
-        nor) echo "no" ;;
-        dan) echo "da" ;;
-        fin) echo "fi" ;;
-        pol) echo "pl" ;;
-        ell|gre) echo "el" ;;
-        heb) echo "he" ;;
-        tha) echo "th" ;;
-        vie) echo "vi" ;;
-        ind) echo "id" ;;
-        mal) echo "ml" ;;
-        tam) echo "ta" ;;
-        tel) echo "te" ;;
-        pan) echo "pa" ;;
-        fas|per) echo "fa" ;;
-        cat) echo "ca" ;;
-        cze|ces) echo "cs" ;;
-        hun) echo "hu" ;;
-        ron|rum) echo "ro" ;;
-        ukr) echo "uk" ;;
-        bul) echo "bg" ;;
-        hrv) echo "hr" ;;
-        srp) echo "sr" ;;
-        slk|slo) echo "sk" ;;
-        slv) echo "sl" ;;
-        lav) echo "lv" ;;
-        lit) echo "lt" ;;
-        est) echo "et" ;;
+        English|eng) echo "en" ;;
+        Portuguese|por) echo "pt" ;;
+        Japanese|jpn) echo "ja" ;;
+        French|fra|fre) echo "fr" ;;
+        German|deu|ger) echo "de" ;;
+        Italian|ita) echo "it" ;;
+        Spanish|spa) echo "es" ;;
+        Korean|kor) echo "ko" ;;
+        Chinese|chi|zho) echo "zh" ;;
+        Russian|rus) echo "ru" ;;
+        Hindi|hin) echo "hi" ;;
+        Arabic|ara) echo "ar" ;;
+        Turkish|tur) echo "tr" ;;
+        Dutch|nld|dut) echo "nl" ;;
+        Swedish|swe) echo "sv" ;;
+        Norwegian|nor) echo "no" ;;
+        Danish|dan) echo "da" ;;
+        Finnish|fin) echo "fi" ;;
+        Polish|pol) echo "pl" ;;
+        Greek|ell|gre) echo "el" ;;
+        Hebrew|heb) echo "he" ;;
+        Thai|tha) echo "th" ;;
+        Vietnamese|vie) echo "vi" ;;
+        Indonesian|ind) echo "id" ;;
+        Malay|mal) echo "ml" ;;
+        Tamil|tam) echo "ta" ;;
+        Telugu|tel) echo "te" ;;
+        Punjabi|pan) echo "pa" ;;
+        Persian|fas|per) echo "fa" ;;
+        Catalan|cat) echo "ca" ;;
+        Czech|cze|ces) echo "cs" ;;
+        Hungarian|hun) echo "hu" ;;
+        Romanian|ron|rum) echo "ro" ;;
+        Ukrainian|ukr) echo "uk" ;;
+        Bulgarian|bul) echo "bg" ;;
+        Croatian|hrv) echo "hr" ;;
+        Serbian|srp) echo "sr" ;;
+        Slovak|slk|slo) echo "sk" ;;
+        Slovenian|slv) echo "sl" ;;
+        Latvian|lav) echo "lv" ;;
+        Lithuanian|lit) echo "lt" ;;
+        Estonian|est) echo "et" ;;
         *) echo "" ;;
     esac
 }
@@ -211,7 +211,7 @@ process_movie() {
     fi
 
     _tmdb_id=$(printf '%s' "${_movie_info}" | jq -r '.tmdbId')
-    _original_lang_3=$(printf '%s' "${_movie_info}" | jq -r '.originalLanguage.iso_639_2 // .originalLanguage // empty')
+    _original_lang_3=$(printf '%s' "${_movie_info}" | jq -r '.originalLanguage | if type == "object" then (.iso_639_2 // .name) else . end // empty')
 
     if [ -z "${_tmdb_id}" ]
     then
