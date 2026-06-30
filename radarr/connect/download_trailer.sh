@@ -33,6 +33,8 @@ load_config
 : "${TRAILER_LANGUAGES:=original,pt-BR}"
 : "${TRAILER_SUBTITLE_LANGS:=pt-BR}"
 : "${YT_DLP_COOKIE_FILE:=}"
+: "${DRY_RUN:=false}"
+: "${DEBUG:=false}"
 
 # Information set on the environment by radarr
 # Can be overridden by command line arguments:
@@ -167,7 +169,13 @@ download_trailer() {
         fi
     fi
 
-    echo "DEBUG: Downloading trailer '${_video_name}' (${_lang}) for ${_movie_path}"
+    debug_log "Downloading trailer '${_video_name}' (${_lang}) for ${_movie_path}"
+
+    if [ "${DRY_RUN}" = "true" ]
+    then
+        echo "DRY-RUN: Would download trailer '${_video_name}' (${_lang}) for ${_movie_path}" >&2
+        return 0
+    fi
 
     # shellcheck disable=SC2086
     yt-dlp \
@@ -207,7 +215,7 @@ process_movie() {
 
     if [ -z "${_tmdb_id}" ]
     then
-        echo "DEBUG: Movie ${_movie_id} has no tmdbId, skipping" >&2
+        debug_log "Movie ${_movie_id} has no tmdbId, skipping"
         return 0
     fi
 
@@ -237,7 +245,7 @@ process_movie() {
 
     if [ -z "${_desired_langs}" ]
     then
-        echo "DEBUG: No desired languages to search for movie ${_movie_id}" >&2
+        debug_log "No desired languages to search for movie ${_movie_id}"
         return 0
     fi
 
@@ -272,7 +280,7 @@ process_movie() {
     # Check if we found any trailers
     if [ ! -s "${_trailers_temp}" ]
     then
-        echo "DEBUG: No trailers found for movie ${_movie_id} (tmdbId: ${_tmdb_id})" >&2
+        debug_log "No trailers found for movie ${_movie_id} (tmdbId: ${_tmdb_id})"
         rm -f "${_trailers_temp}"
         trap - INT TERM EXIT
         return 0
@@ -327,13 +335,17 @@ process_all_movies() {
 
     while read -r _id _path; do
         _counter=$((_counter+1))
-        echo "DEBUG: (${_counter}) Processing movie '${_id}' with path '${_path}'"
+        debug_log "(${_counter}) Processing movie '${_id}' with path '${_path}'"
         process_movie "${_id}" "${_path}"
         # Be nice to the TMDB and Radarr APIs
         sleep 1
     done <<EOF
 ${_movie_list}
 EOF
+}
+
+debug_log() {
+    [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
 }
 
 # main script flow
@@ -344,6 +356,15 @@ then
     echo "ERROR: TMDB_API_KEY is not set. Configure it in scripts.conf" >&2
     exit 1
 fi
+
+# Parse optional flags before positional args
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -n) DRY_RUN=true; shift ;;
+        -d) DEBUG=true; shift ;;
+        *) break ;;
+    esac
+done
 
 if [ -n "$1" ]
 then
@@ -362,22 +383,24 @@ fi
 
 case "${EVENT_TYPE}" in
     Test)
-        echo "DEBUG: Received test event, signal success"
+        debug_log "Received test event, signal success"
         exit 0
         ;;
     MovieAdded)
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         process_movie "${MOVIE_ID}" "${MOVIE_PATH}"
         ;;
     Download)
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         process_movie "${MOVIE_ID}" "${MOVIE_PATH}"
         ;;
     [Bb]ulk)
         # This event does not exist in radarr, but can be triggered
         # by a cli invokation of this script. eg
         # ./download_trailer.sh bulk
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        : "${DRY_RUN:=true}"
+        : "${DEBUG:=true}"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         process_all_movies
         ;;
     *)

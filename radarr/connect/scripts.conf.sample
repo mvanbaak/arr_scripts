@@ -22,3 +22,9 @@ TRAILER_SUBTITLE_LANGS="pt-BR"
 # Optional - leave empty to download without authentication.
 # See docs/cookie-extraction.md for instructions on exporting cookies from your browser.
 YT_DLP_COOKIE_FILE=""
+
+# Dry-run mode. When true, skips actual yt-dlp download, shows what would happen.
+DRY_RUN="false"
+
+# Debug mode. When true, prints detailed diagnostic messages.
+DEBUG="false"
