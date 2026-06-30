@@ -73,7 +73,7 @@ get_tag_id_by_label() {
         -H "Accept-Encoding: application/json" \
         -H "X-Api-Key: ${RADARR_API_KEY}" \
         "${RADARR_API_URL}/tag" | \
-    jq --arg t "$1" '.[] | select(.label == $t) | .id'
+    jq --arg t "$1" '[.[] | select(.label == $t)] | .[0].id // empty'
 }
 
 create_tag() {
