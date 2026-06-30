@@ -60,7 +60,7 @@ check_needed_executables() {
     do
         if ! command -v "${executable}" >/dev/null 2>&1
         then
-            echo "ERROR: Executable '${executable} not found." >&2
+            echo "ERROR: Executable '${executable}' not found." >&2
             exit 127
         fi
     done
