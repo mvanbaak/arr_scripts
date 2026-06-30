@@ -54,6 +54,8 @@ load_config
 : "${LOG_FILE:=none}" # If 'none' log to stdout/stderr
 : "${RADARR_TAG_FEL:=fel}"
 : "${RADARR_TAG_MEL:=mel}"
+: "${DRY_RUN:=false}"
+: "${DEBUG:=false}"
 
 # Information set on the environment by radarr
 # Can be overridden by command line arguments:
@@ -309,20 +311,35 @@ tag_movie() {
 
     if echo "${_rpu_summary}" | grep -q "Profile: 7 (FEL)"
     then
-        echo "DEBUG: FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        debug_log "FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
         echo "${_rpu_summary}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-        add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would add FEL tag, remove MEL tag for movie ${_movie_id}" >&2
+        else
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+            add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        fi
     elif echo "${_rpu_summary}" | grep -q "Profile: 7 (MEL)"
     then
-        echo "DEBUG: MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        debug_log "MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
         echo "${_rpu_summary}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-        add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would add MEL tag, remove FEL tag for movie ${_movie_id}" >&2
+        else
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        fi
     else
-        echo "DEBUG: No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        debug_log "No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would remove FEL and MEL tags for movie ${_movie_id}" >&2
+        else
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        fi
     fi
 }
 
@@ -334,7 +351,7 @@ tag_all_movies() {
 
     while read -r id file; do
         _counter=$((_counter+=1))
-        echo "DEBUG: (${_counter}) Tagging movie '${id}' with path '${file}'"
+        debug_log "(${_counter}) Tagging movie '${id}' with path '${file}'"
         tag_movie "$id" "$file"
         # lame, but be nice to our radarr api
         sleep 1
@@ -343,8 +360,21 @@ ${_movie_list}
 EOF
 }
 
+debug_log() {
+    [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
+}
+
 # main script flow
 check_needed_executables "curl dovi_tool ffmpeg grep jq mktemp"
+
+# Parse optional flags before positional args
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -n) DRY_RUN=true; shift ;;
+        -d) DEBUG=true; shift ;;
+        *) break ;;
+    esac
+done
 
 if [ -n "$1" ]
 then
@@ -363,25 +393,32 @@ fi
 
 case "${EVENT_TYPE}" in
     Test)
-        echo "DEBUG: Received test event, signal success"
+        debug_log "Received test event, signal success"
         exit 0
         ;;
     MovieFileDelete)
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
-        # On file delete, we should delete the tags if they are attached
-        remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
-        remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
+        debug_log "Got event ${EVENT_TYPE}, handling"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would remove FEL and MEL tags for movie ${MOVIE_ID}" >&2
+        else
+            # On file delete, we should delete the tags if they are attached
+            remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
+            remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
+        fi
         exit 0
         ;;
     Download)
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         tag_movie "${MOVIE_ID}" "${MOVIE_FILE}"
         ;;
     [Bb]ulk)
         # This event does not exist in radarr, but can be triggered
         # by a cli invokation of this script. eg
         # ./tag_dvfelmel.sh bulk
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        : "${DRY_RUN:=true}"
+        : "${DEBUG:=true}"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         tag_all_movies
         ;;
     *)
