@@ -16,6 +16,18 @@
 #
 # Script based on the tag_dvfelmel.sh structure by Michiel van Baak Jansen
 #
+# Version 0.2.0 (Released 2026-06-30)
+#   * Recode trailers to MP4/H.264 for universal Plex Direct Play
+#   * Autopulse notification after download (AUTOPULSE_URL config)
+#   * YT_DLP_FORMAT and YT_DLP_RECODE config variables for format control
+#   * DRY_RUN and DEBUG config variables with -n/-d CLI flags
+#   * Bulk mode enables dry-run and debug by default
+#   * Full yt-dlp command shown in dry-run output
+#   * Skip directory creation in dry-run mode
+#   * Radarr v5 originalLanguage object format support
+#   * Full language name mapping (e.g. "English", "French") in lang_to_iso639_1
+#   * Handle null iso_639_1 from TMDB in trailer lookup
+#
 # Version 0.1.0 (Released 2026-06-30)
 #   * Initial implementation
 #     * TMDB trailer lookup with language filtering

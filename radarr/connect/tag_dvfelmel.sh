@@ -19,6 +19,12 @@
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
 #
+# Version 0.3.0 (Released 2026-06-30)
+#   * DRY_RUN and DEBUG config variables with -n/-d CLI flags
+#   * Bulk mode enables dry-run and debug by default
+#   * Dry-run skips add/remove tag API calls
+#   * debug_log function gates DEBUG output
+#
 # Version 0.2.0 (Released 2026-06-30)
 #   * Cache tag ids to reduce api calls
 #

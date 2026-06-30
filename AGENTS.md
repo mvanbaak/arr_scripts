@@ -172,8 +172,16 @@ function_name() {
 
 - Use comments to explain non-obvious logic
 - Document function purpose at the top
-- Include version history for significant changes
 - Reference external sources when basing code on others' work
+
+### Changelog Headers
+
+Every script must have a versioned changelog in its header comment block.
+- Bump version when adding features or fixing behavior (MAJOR.MINOR.PATCH)
+- Add new version block ABOVE the previous one (newest first)
+- Prefix each change with `#   * ` for consistent formatting
+- Use format: `# Version X.Y.Z (Released YYYY-MM-DD)`
+- List user-facing changes, not implementation details
 
 ### Configuration Files
 
