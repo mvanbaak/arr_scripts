@@ -23,6 +23,18 @@ TRAILER_SUBTITLE_LANGS="pt-BR"
 # See docs/cookie-extraction.md for instructions on exporting cookies from your browser.
 YT_DLP_COOKIE_FILE=""
 
+# Autopulse notification (optional). Uncomment and set URL to enable Plex scan after trailer download.
+# AUTOPULSE_URL="http://ip:3030"
+# AUTOPULSE_TRIGGER="manual"
+# AUTOPULSE_AUTH_USER="username"
+# AUTOPULSE_AUTH_PASS="password"
+
+# yt-dlp format selector. Default gets best quality then recodes to MP4 for compatibility.
+# YT_DLP_FORMAT="bv*+ba/b"
+
+# Target container for --recode-video. MP4 ensures H.264+AAC — Direct Play on all devices.
+# YT_DLP_RECODE="mp4"
+
 # Dry-run mode. When true, skips actual yt-dlp download, shows what would happen.
 DRY_RUN="false"
 

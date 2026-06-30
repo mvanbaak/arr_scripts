@@ -33,6 +33,12 @@ load_config
 : "${TRAILER_LANGUAGES:=original,pt-BR}"
 : "${TRAILER_SUBTITLE_LANGS:=pt-BR}"
 : "${YT_DLP_COOKIE_FILE:=}"
+: "${YT_DLP_FORMAT:=bv*+ba/b}"
+: "${YT_DLP_RECODE:=mp4}"
+: "${AUTOPULSE_URL:=}"
+: "${AUTOPULSE_TRIGGER:=manual}"
+: "${AUTOPULSE_AUTH_USER:=}"
+: "${AUTOPULSE_AUTH_PASS:=}"
 : "${DRY_RUN:=false}"
 : "${DEBUG:=false}"
 
@@ -173,9 +179,8 @@ download_trailer() {
 
     if [ "${DRY_RUN}" = "true" ]
     then
-        echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.%(ext)s" >&2
-        # Print yt-dlp command, removing extra whitespace from empty flags
-        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"bestvideo+bestaudio/best\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
+        echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.mp4" >&2
+        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --recode-video \"${YT_DLP_RECODE}\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
         return 0
     fi
 
@@ -183,7 +188,8 @@ download_trailer() {
     yt-dlp \
         --download-archive "${_trailers_dir}/.archive" \
         -o "${_trailers_dir}/${_sanitized_name}.%(ext)s" \
-        -f "bestvideo+bestaudio/best" \
+        -f "${YT_DLP_FORMAT}" \
+        --recode-video "${YT_DLP_RECODE}" \
         ${_subtitle_flags} \
         ${_cookie_flags} \
         "https://www.youtube.com/watch?v=${_yt_key}"
@@ -329,6 +335,7 @@ process_movie() {
         fi
     done < "${_trailers_temp}"
 
+    notify_autopulse "${_movie_path}"
     rm -f "${_trailers_temp}"
     trap - INT TERM EXIT
 }
@@ -354,6 +361,20 @@ EOF
 
 debug_log() {
     [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
+}
+
+notify_autopulse() {
+    [ -z "${AUTOPULSE_URL}" ] && return 0
+    local _path _url _auth
+    _path="$1"
+    _url="${AUTOPULSE_URL}/triggers/${AUTOPULSE_TRIGGER}"
+    _auth=""
+    [ -n "${AUTOPULSE_AUTH_USER}" ] && _auth="-u ${AUTOPULSE_AUTH_USER}:${AUTOPULSE_AUTH_PASS}"
+    debug_log "Notifying autopulse: ${_path}"
+    # shellcheck disable=SC2086
+    curl -s ${_auth} --get \
+        --data-urlencode "path=${_path}" \
+        "${_url}"
 }
 
 # main script flow
