@@ -70,7 +70,8 @@ get_tag_id_by_label() {
     curl \
         -s \
         -H "Accept-Encoding: application/json" \
-        "${RADARR_API_URL}/tag?apikey=${RADARR_API_KEY}" | \
+        -H "X-Api-Key: ${RADARR_API_KEY}" \
+        "${RADARR_API_URL}/tag" | \
     jq ".[] | select(.label == \"$1\") | .id"
 }
 
@@ -82,9 +83,10 @@ create_tag() {
         -s \
         -X POST \
         -H "Accept-Encoding: application/json" \
+        -H "X-Api-Key: ${RADARR_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "${_payload}" \
-        "${RADARR_API_URL}/tag?apikey=${RADARR_API_KEY}" | \
+        "${RADARR_API_URL}/tag" | \
     jq ".id"
 }
 
@@ -121,7 +123,8 @@ movie_has_tag() {
     curl \
         -s \
         -H "Accept-Encoding: application/json" \
-        "${RADARR_API_URL}/movie/$1?apikey=${RADARR_API_KEY}" | \
+        -H "X-Api-Key: ${RADARR_API_KEY}" \
+        "${RADARR_API_URL}/movie/$1" | \
     jq -e ".tags | index(${_tag_id})" >/dev/null
 }
 
@@ -218,9 +221,10 @@ add_tag_to_movie() {
             -s \
             -X PUT \
             -H "Accept-Encoding: application/json" \
+            -H "X-Api-Key: ${RADARR_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "${_payload}" \
-            "${RADARR_API_URL}/movie/editor?apikey=${RADARR_API_KEY}")
+            "${RADARR_API_URL}/movie/editor")
         then
             echo "ERROR: Payload: ${_payload}" >&2
             echo "ERROR: Response: ${_add_tag_response}" >&2
@@ -267,9 +271,10 @@ remove_tag_from_movie() {
             -s \
             -X PUT \
             -H "Accept-Encoding: application/json" \
+            -H "X-Api-Key: ${RADARR_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "${_payload}" \
-            "${RADARR_API_URL}/movie/editor?apikey=${RADARR_API_KEY}")
+            "${RADARR_API_URL}/movie/editor")
         then
             echo "ERROR: Payload: ${_payload}" >&2
             echo "ERROR: Response: ${_remove_tag_response}" >&2
@@ -318,7 +323,8 @@ tag_all_movies() {
     curl \
         -s \
         -H "Accept-Encoding: application/json" \
-        "${RADARR_API_URL}/movie?apikey=${RADARR_API_KEY}" | \
+        -H "X-Api-Key: ${RADARR_API_KEY}" \
+        "${RADARR_API_URL}/movie" | \
     jq -r 'sort_by(.id)[] | select(.movieFile != null) | "\(.id) \(.movieFile.path)"' | \
     while read -r id file; do
         _counter=$((_counter+=1))
