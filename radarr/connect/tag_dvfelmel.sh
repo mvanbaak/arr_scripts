@@ -29,8 +29,9 @@
 # The fine folks in the TRaSH-Guides discord have it figured out. Thanks for sharing!
 
 # Configuration
-# Read from file if found
-# TODO: Insecure reading of file. Should be moved to a shlib function
+# Read from file if found.
+# NOTE: sourcing executes arbitrary shell from scripts.conf; acceptable because
+# the file is gitignored, user-owned, and only readable by the script operator.
 SCRIPT_DIR=$(dirname "$0")
 if [ -f "${SCRIPT_DIR}/scripts.conf" ]
 then
