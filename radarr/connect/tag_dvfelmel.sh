@@ -103,6 +103,7 @@ movie_has_tag() {
             ;;
         *)
             _movie_id="$1"
+            ;;
     esac
 
     # tag can be a string (the label) or an integer (the id)
@@ -201,6 +202,7 @@ add_tag_to_movie() {
             ;;
         *)
             _movie_id="$1"
+            ;;
     esac
 
     # tag can be a string (the label) or an integer (the id)
@@ -250,6 +252,7 @@ remove_tag_from_movie() {
             ;;
         *)
             _movie_id="$1"
+            ;;
     esac
 
     # tag can be a string (the label) or an integer (the id)
