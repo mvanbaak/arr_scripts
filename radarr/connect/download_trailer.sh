@@ -359,7 +359,7 @@ process_movie() {
         fi
     done < "${_trailers_temp}"
 
-    [ "${_has_new}" = "true" ] && notify_autopulse "${_movie_path}"
+    [ "${_has_new}" = "true" ] && [ "${DRY_RUN}" != "true" ] && notify_autopulse "${_movie_path}"
     rm -f "${_trailers_temp}"
     trap - INT TERM EXIT
 }
