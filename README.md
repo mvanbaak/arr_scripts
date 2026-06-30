@@ -2,6 +2,10 @@
 
 Random collection of scripts and configuration files used by *arr tools in my setup
 
+## Contributing
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/) and the conventions documented in [AGENTS.md](AGENTS.md).
+
 ## Looking for more extensive Radarr taggers?
 
 If you need more features or better maintained taggers, check out the [Radarr DV HDR Tagarr](https://github.com/TRaSH-/Starr-taggers#radarr-dv-hdr-tagarr) from TRaSH-. It offers more extensive functionality and active development.

@@ -174,6 +174,35 @@ function_name() {
 
 ---
 
+## Commit Conventions
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/).
+
+### Format
+
+```
+<type>: <description>
+```
+
+### Types
+
+- `fix:` - Bug fixes
+- `feat:` - New features
+- `perf:` - Performance improvements
+- `refactor:` - Code restructuring without behavior change
+- `style:` - Formatting, naming, or cosmetic changes
+- `docs:` - Documentation changes
+- `chore:` - Maintenance, tooling, or config changes
+
+### Guidelines
+
+- One logical change per commit
+- Keep the subject line concise (imperative mood)
+- Scope is optional but encouraged for clarity (e.g., `fix(rpu): ...`)
+- Tag releases with annotated tags: `git tag -a <version> -m "Release <version>"`
+
+---
+
 ## File Organization
 
 ```
