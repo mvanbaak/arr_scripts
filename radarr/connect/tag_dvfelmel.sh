@@ -125,7 +125,7 @@ movie_has_tag() {
         -s \
         -H "Accept-Encoding: application/json" \
         -H "X-Api-Key: ${RADARR_API_KEY}" \
-        "${RADARR_API_URL}/movie/$1" | \
+        "${RADARR_API_URL}/movie/${_movie_id}" | \
     jq -e ".tags | index(${_tag_id})" >/dev/null
 }
 
