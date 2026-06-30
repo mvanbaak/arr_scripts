@@ -19,6 +19,21 @@
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
 #
+# Version 0.1.0 (Released 2026-06-30)
+#   * Add bulk event type to tag all movies in radarr
+#   * Move main logic into functions for reuse
+#   * Remove fel/mel tags that no longer apply on import/delete
+#   * Pass API key via header instead of URL query string
+#   * Verify RPU temp file output instead of unreliable pipeline exit status
+#   * Return non-zero when RPU extraction yields no summary
+#   * Trap signals to clean up temp file during RPU extraction
+#   * Use portable integer sleep duration
+#   * Guard against duplicate tag labels in get_tag_id_by_label
+#   * Use jq --arg to safely interpolate tag labels
+#   * Run bulk-tagging loop in current shell to preserve counter
+#   * Normalize case branch terminators and validated variable usage
+#   * Fix typos in comments and README
+#
 # Version 0.0.1 (Released 2024-10-09)
 #   * Initial implementation
 #     * ffmpeg/dovi_tools output parsing taken from jpalenz77's script
