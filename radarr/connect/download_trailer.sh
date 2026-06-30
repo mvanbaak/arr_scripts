@@ -173,7 +173,9 @@ download_trailer() {
 
     if [ "${DRY_RUN}" = "true" ]
     then
-        echo "DRY-RUN: Would download trailer '${_video_name}' (${_lang}) for ${_movie_path}" >&2
+        echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.%(ext)s" >&2
+        # Print yt-dlp command, removing extra whitespace from empty flags
+        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"bestvideo+bestaudio/best\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
         return 0
     fi
 
