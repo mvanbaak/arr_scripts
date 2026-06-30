@@ -136,7 +136,7 @@ extract_moviefile_rpu_summary() {
     fi
 
     _rpu_temp_file=$(mktemp)
-    if ! ffmpeg \
+    ffmpeg \
         -loglevel error \
         -t 10 \
         -i "$1" \
@@ -149,11 +149,15 @@ extract_moviefile_rpu_summary() {
         --input - \
         --rpu-out "${_rpu_temp_file}" \
         2>/dev/null
+
+    # ffmpeg and dovi_tool run in a pipeline; without pipefail we cannot
+    # trust the pipeline's exit status, so verify the output file instead.
+    if [ ! -s "${_rpu_temp_file}" ]
     then
         _rpu_summary=""
     fi
 
-    if ! _rpu_summary=$(dovi_tool \
+    if [ -s "${_rpu_temp_file}" ] && ! _rpu_summary=$(dovi_tool \
         info \
         --input "${_rpu_temp_file}" \
         --summary \
