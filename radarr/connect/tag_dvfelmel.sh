@@ -335,8 +335,8 @@ tag_all_movies() {
         _counter=$((_counter+=1))
         echo "DEBUG: (${_counter}) Tagging movie '${id}' with path '${file}'"
         tag_movie "$id" "$file"
-        # lame, but be nice te our radarr api
-        sleep 0.5
+        # lame, but be nice to our radarr api
+        sleep 1
     done
 }
 
