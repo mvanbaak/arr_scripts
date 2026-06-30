@@ -187,14 +187,21 @@ download_trailer() {
         fi
     fi
 
-    debug_log "Downloading trailer '${_video_name}' (${_lang}) for ${_movie_path}"
-
     if [ "${DRY_RUN}" = "true" ]
     then
         echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.mp4" >&2
         echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --recode-video \"${YT_DLP_RECODE}\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
         return 0
     fi
+
+    # Skip if already in yt-dlp archive
+    if [ -f "${_trailers_dir}/.archive" ] && grep -qs "${_yt_key}" "${_trailers_dir}/.archive"
+    then
+        debug_log "Trailer already downloaded, skipping: ${_sanitized_name}"
+        return 1
+    fi
+
+    debug_log "Downloading trailer '${_video_name}' (${_lang}) for ${_movie_path}"
 
     # shellcheck disable=SC2086
     yt-dlp \
@@ -337,17 +344,22 @@ process_movie() {
         fi
     fi
 
-    # Download each trailer
-    # Each line is: youtube_key|video_name|iso_639_1|is_original
+    # Download each trailer, track if anything new was actually downloaded
+    _has_new=false
     while IFS='|' read -r _yt_key _video_name _trailer_lang _is_original; do
         if [ -n "${_yt_key}" ]
         then
-            download_trailer "${_yt_key}" "${_video_name}" "${_trailer_lang}" "${_is_original}" "${_movie_path}" || \
-                echo "ERROR: Failed to download trailer ${_yt_key} for movie ${_movie_id}" >&2
+            download_trailer "${_yt_key}" "${_video_name}" "${_trailer_lang}" "${_is_original}" "${_movie_path}"
+            _dl_status=$?
+            case $_dl_status in
+                0) _has_new=true ;;
+                1) debug_log "Skipped, already downloaded" ;;
+                *) echo "ERROR: Failed to download trailer ${_yt_key} for movie ${_movie_id}" >&2 ;;
+            esac
         fi
     done < "${_trailers_temp}"
 
-    notify_autopulse "${_movie_path}"
+    [ "${_has_new}" = "true" ] && notify_autopulse "${_movie_path}"
     rm -f "${_trailers_temp}"
     trap - INT TERM EXIT
 }
