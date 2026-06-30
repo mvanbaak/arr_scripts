@@ -286,28 +286,34 @@ process_movie() {
         return 0
     fi
 
-    # Create movie directory if it doesn't exist (MovieAdded case)
-    if [ ! -d "${_movie_path}" ]
+    # Create directories if needed (skip in dry-run)
+    if [ "${DRY_RUN}" = "true" ]
     then
-        if ! mkdir -p "${_movie_path}"
+        debug_log "Dry-run: would create directories for ${_movie_path}"
+    else
+        # Create movie directory if it doesn't exist (MovieAdded case)
+        if [ ! -d "${_movie_path}" ]
         then
-            echo "ERROR: Failed to create movie directory: ${_movie_path}" >&2
-            rm -f "${_trailers_temp}"
-            trap - INT TERM EXIT
-            return 1
+            if ! mkdir -p "${_movie_path}"
+            then
+                echo "ERROR: Failed to create movie directory: ${_movie_path}" >&2
+                rm -f "${_trailers_temp}"
+                trap - INT TERM EXIT
+                return 1
+            fi
         fi
-    fi
 
-    # Create Trailers subdirectory
-    _trailers_dir="${_movie_path}/Trailers"
-    if [ ! -d "${_trailers_dir}" ]
-    then
-        if ! mkdir -p "${_trailers_dir}"
+        # Create Trailers subdirectory
+        _trailers_dir="${_movie_path}/Trailers"
+        if [ ! -d "${_trailers_dir}" ]
         then
-            echo "ERROR: Failed to create trailers directory: ${_trailers_dir}" >&2
-            rm -f "${_trailers_temp}"
-            trap - INT TERM EXIT
-            return 1
+            if ! mkdir -p "${_trailers_dir}"
+            then
+                echo "ERROR: Failed to create trailers directory: ${_trailers_dir}" >&2
+                rm -f "${_trailers_temp}"
+                trap - INT TERM EXIT
+                return 1
+            fi
         fi
     fi
 
