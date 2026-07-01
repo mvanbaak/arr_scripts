@@ -260,6 +260,7 @@ Required executables for `tag_dvfelmel.sh` (checked at runtime):
 Required executables for `download_trailer.sh` (checked at runtime):
 - curl
 - cut
+- ffmpeg
 - jq
 - mkdir
 - mktemp

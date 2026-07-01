@@ -4,7 +4,7 @@
 
 # Shared library for arr_scripts connect scripts.
 # Sourced by tag_dvfelmel.sh and download_trailer.sh.
-# Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info
+# Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info, debug_log
 
 load_config() {
     # Configuration
@@ -61,4 +61,8 @@ get_movie_info() {
     esac
 
     radarr_api_get "movie/${_movie_id}"
+}
+
+debug_log() {
+    [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
 }

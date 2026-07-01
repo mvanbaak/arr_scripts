@@ -366,10 +366,6 @@ ${_movie_list}
 EOF
 }
 
-debug_log() {
-    [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
-}
-
 # main script flow
 check_needed_executables "curl dovi_tool ffmpeg grep jq mktemp"
 

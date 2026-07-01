@@ -9,6 +9,7 @@
 # Requirements:
 # * sh (tested with sh from FreeBSD base FreeBSD 14.1)
 # * curl (tested with 8.10.1)
+# * ffmpeg (required by yt-dlp for merging and recoding)
 # * jq (tested with 1.7.1)
 # * mkdir (coreutils / FreeBSD base)
 # * mktemp (coreutils / FreeBSD base)
@@ -191,7 +192,7 @@ download_trailer() {
     then
         echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.mp4" >&2
         echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --recode-video \"${YT_DLP_RECODE}\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
-        return 0
+        return 2
     fi
 
     # Skip if already in yt-dlp archive
@@ -219,7 +220,7 @@ download_trailer() {
 process_movie() {
     local _movie_id _movie_path _movie_info _tmdb_id _original_lang_3 _original_lang_2
     local _desired_langs _lang _is_original _trailers_temp _trailers_dir
-    local _yt_key _video_name _trailer_lang
+    local _yt_key _video_name _trailer_lang _has_new _dl_status
 
     _movie_id="$1"
     _movie_path="$2"
@@ -354,6 +355,7 @@ process_movie() {
             case $_dl_status in
                 0) _has_new=true ;;
                 1) debug_log "Skipped, already downloaded" ;;
+                2) debug_log "Dry-run, would download" ;;
                 *) echo "ERROR: Failed to download trailer ${_yt_key} for movie ${_movie_id}" >&2 ;;
             esac
         fi
@@ -383,26 +385,28 @@ ${_movie_list}
 EOF
 }
 
-debug_log() {
-    [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
-}
-
 notify_autopulse() {
     [ -z "${AUTOPULSE_URL}" ] && return 0
-    local _path _url _auth
+    local _path _url _auth _response
     _path="$1"
     _url="${AUTOPULSE_URL}/triggers/${AUTOPULSE_TRIGGER}"
     _auth=""
     [ -n "${AUTOPULSE_AUTH_USER}" ] && _auth="-u ${AUTOPULSE_AUTH_USER}:${AUTOPULSE_AUTH_PASS}"
     debug_log "Notifying autopulse: ${_path}"
     # shellcheck disable=SC2086
-    curl -s ${_auth} --get \
+    _response=$(curl -s -w "\n%{http_code}" ${_auth} --get \
         --data-urlencode "path=${_path}" \
-        "${_url}"
+        "${_url}")
+    _http_code=$(printf '%s' "${_response}" | tail -1)
+    _body=$(printf '%s' "${_response}" | sed '$d')
+    case "${_http_code}" in
+        2*) debug_log "Autopulse responded: ${_http_code}" ;;
+        *) echo "WARN: Autopulse notification failed (HTTP ${_http_code}): ${_body}" >&2 ;;
+    esac
 }
 
 # main script flow
-check_needed_executables "curl cut jq mkdir mktemp tr yt-dlp"
+check_needed_executables "curl cut ffmpeg jq mkdir mktemp tr yt-dlp"
 
 if [ -z "${TMDB_API_KEY}" ]
 then
