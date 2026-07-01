@@ -9,10 +9,12 @@
 # Requirements:
 # * sh (tested with sh from FreeBSD base FreeBSD 14.1)
 # * curl (tested with 8.10.1)
+# * cut (coreutils / FreeBSD base)
 # * ffmpeg (required by yt-dlp for merging and recoding)
 # * jq (tested with 1.7.1)
 # * mkdir (coreutils / FreeBSD base)
 # * mktemp (coreutils / FreeBSD base)
+# * tr (coreutils / FreeBSD base)
 # * yt-dlp (tested with 2024.x.x)
 #
 # Script based on the tag_dvfelmel.sh structure by Michiel van Baak Jansen
