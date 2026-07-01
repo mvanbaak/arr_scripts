@@ -19,6 +19,10 @@
 #
 # Script based on the tag_dvfelmel.sh structure by Michiel van Baak Jansen
 #
+# Version 0.3.0 (Released 2026-07-01)
+#   * Fix autopulse notification: use GET with 'path' query param
+#   * Add curl exit code to autopulse failure warning for easier diagnosis
+#
 # Version 0.2.0 (Released 2026-06-30)
 #   * Recode trailers to MP4/H.264 for universal Plex Direct Play
 #   * Autopulse notification after download (AUTOPULSE_URL config)
@@ -399,11 +403,12 @@ notify_autopulse() {
     _response=$(curl -s -w "\n%{http_code}" ${_auth} --get \
         --data-urlencode "path=${_path}" \
         "${_url}")
+    _curl_rc=$?
     _http_code=$(printf '%s' "${_response}" | tail -1)
     _body=$(printf '%s' "${_response}" | sed '$d')
     case "${_http_code}" in
         2*) debug_log "Autopulse responded: ${_http_code}" ;;
-        *) echo "WARN: Autopulse notification failed (HTTP ${_http_code}): ${_body}" >&2 ;;
+        *) echo "WARN: Autopulse notification failed (HTTP ${_http_code}, curl exit ${_curl_rc}): ${_body}" >&2 ;;
     esac
 }
 
