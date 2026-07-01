@@ -202,7 +202,7 @@ download_trailer() {
     fi
 
     # Skip if already in yt-dlp archive
-    if [ -f "${_trailers_dir}/.archive" ] && grep -qs "${_yt_key}" "${_trailers_dir}/.archive"
+    if [ -f "${_trailers_dir}/.archive" ] && grep -qs -- "${_yt_key}" "${_trailers_dir}/.archive"
     then
         debug_log "Trailer already downloaded, skipping: ${_sanitized_name}"
         return 1
