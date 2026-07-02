@@ -60,6 +60,15 @@ Daily cron job that:
 | JSON | `-j` / `--json` | Output machine-readable JSON |
 | Quiet | `-q` / `--quiet` | Only print errors and counts, no per-movie list |
 
+**Mode precedence:**
+
+1. `--apply` flag always overrides `DRY_RUN` config. This means:
+   - `DRY_RUN=true` in conf + `--apply` flag → **applies** (flag wins)
+   - `DRY_RUN=false` in conf + no flag → **applies** (conf says go)
+   - `DRY_RUN=false` in conf + `--dry-run` flag → **dry-run** (flag wins)
+2. `--json` takes precedence over `--quiet` for output format. If both passed, JSON wins.
+3. `--apply` + `--json` → switches profiles AND outputs JSON with results.
+
 ### 3.3 Exit codes
 
 | Code | Meaning |
@@ -116,29 +125,57 @@ P_VALUE=0.95
 
 ```
 all_movies = GET /api/v3/movie
+```
 
-# Filter to movies with both web + physical
-gap_array = []
-for movie in all_movies:
-    if movie.digitalRelease != null AND movie.physicalRelease != null:
-        gap = (physicalRelease - digitalRelease) in days
-        gap_array.append(gap)
+The IQR filter and percentile computation happen in a single jq pass. Pass `P_VALUE` and `MIN_SAMPLE` as jq args:
 
-# IQR filter
-sorted_gaps = sort(gap_array)
-Q1 = sorted_gaps[floor(len * 0.25)]
-Q3 = sorted_gaps[floor(len * 0.75)]
-IQR = Q3 - Q1
-lower = Q1 - 1.5 * IQR
-upper = Q3 + 1.5 * IQR
-filtered = [g for g in gap_array if lower <= g <= upper]
+```jq
+# IQR filter function: removes outliers using 1.5*IQR rule
+def iqr_filter:
+    if length == 0 then []
+    else
+        sort as $sorted
+        | (($sorted | length) * 0.25 | floor) as $q1_idx
+        | (($sorted | length) * 0.75 | floor) as $q3_idx
+        | $sorted[$q1_idx] as $q1
+        | $sorted[$q3_idx] as $q3
+        | ($q3 - $q1) as $iqr
+        | ($q1 - 1.5 * $iqr) as $lower
+        | ($q3 + 1.5 * $iqr) as $upper
+        | [.[] | select(. >= $lower and . <= $upper)]
+    end;
 
-# Percentile on filtered
-sorted_filtered = sort(filtered)
-P = sorted_filtered[floor(len * P_VALUE)]
+# Build gap array: movies with both digital + physical, gap in days
+[.[] | select(.digitalRelease != null and .physicalRelease != null)
+ | ((.physicalRelease | fromdateiso8601) - (.digitalRelease | fromdateiso8601)) / 86400] as $gaps
 
-# Clamp
-threshold = clamp(P, MIN_THRESHOLD, MAX_THRESHOLD)
+# If sample too small, return null (caller uses FALLBACK_THRESHOLD)
+| if ($gaps | length) < ($min_sample | tonumber) then
+    {threshold: null, sample_size: ($gaps | length), used_fallback: true}
+
+# Otherwise: IQR filter, then percentile on filtered
+else
+    ($gaps | iqr_filter | sort) as $filtered
+    | ($filtered[(($filtered | length) * ($p_value | tonumber)) | floor]) as $p_val
+    | {threshold: $p_val, sample_size: ($gaps | length), filtered_size: ($filtered | length), used_fallback: false}
+end
+```
+
+**Percentile approximation:** Uses index-based percentile: `sorted[floor(length * p)]`. With 30 samples at P95, index 28 = ~96.7th percentile (slightly conservative). This is acceptable — the threshold is clamped by MIN/MAX anyway.
+
+**Clamping (in shell, not jq):**
+```sh
+_threshold=$(printf '%s' "${_threshold_json}" | jq -r '.threshold')
+_used_fallback=$(printf '%s' "${_threshold_json}" | jq -r '.used_fallback')
+
+if [ "${_used_fallback}" = "true" ] || [ -z "${_threshold}" ] || [ "${_threshold}" = "null" ]
+then
+    _threshold="${FALLBACK_THRESHOLD}"
+fi
+
+# Clamp to [MIN_THRESHOLD, MAX_THRESHOLD]
+[ "${_threshold}" -lt "${MIN_THRESHOLD}" ] && _threshold="${MIN_THRESHOLD}"
+[ "${_threshold}" -gt "${MAX_THRESHOLD}" ] && _threshold="${MAX_THRESHOLD}"
 ```
 
 ### 5.2 Candidate matching
@@ -160,6 +197,10 @@ for movie in all_movies:
         skip  # Already on a different profile
     if movie.inCinemas == null:
         skip  # No cinema date (pre-release, not relevant)
+    if movie.hasFile == true:
+        skip  # Already has a downloaded file
+    if movie.monitored == false:
+        skip  # Unmonitored — search won't trigger anyway
 
     waiting_days = (now - movie.digitalRelease) in days
 
@@ -194,6 +235,8 @@ if TRIGGER_SEARCH and len(switched_ids) > 0:
 ```
 
 Radarr will queue search tasks for the switched movies. They get picked up by Radarr's built-in search queue and download matching releases — no external tool needed.
+
+**Success criteria:** HTTP 200 (Accepted) response with a JSON body containing a `jobId` field. Any other HTTP status or curl failure = error. Log the response body on failure for diagnosis.
 
 **Rate limiting:** The search command is a single API call regardless of how many movies were switched. Radarr handles the queue internally, no need to batch or delay. The initial profile switch calls are already rate-limited via `sleep 0.5` between them per `MAX_SWITCH_PER_RUN`.
 
@@ -259,8 +302,8 @@ Errors: 0
 - Create `radarr/auto_quality_switch.sh`
 - Changelog header following project convention
 - Source `scripts_common.sh`, call `load_config`
-- Define default variables
-- Register in `AGENTS.md` if desired
+- Define default variables (section 4.2)
+- **Update `radarr/connect/scripts.conf.sample`** with all new config variables from section 4.2, commented out with defaults. Project convention requires sample files to document all config variables.
 
 ### Phase 2: Profile resolution (1 step)
 
@@ -272,12 +315,12 @@ Errors: 0
 
 ### Phase 3: Threshold computation (1 step)
 
-- Implement in jq:
-  - `percentiles` function (customizable P value)
-  - `iqr_filtered_stats` function (reuse from `release_date_stats.sh`)
-  - Gap calculation for movies with both dates
-  - Clamp to `[MIN_THRESHOLD, MAX_THRESHOLD]`
-  - Fallback if below `MIN_SAMPLE`
+- Implement the jq query from section 5.1 (inline above — do not reference external files)
+- Pass `P_VALUE` and `MIN_SAMPLE` as `--arg` to jq
+- Parse result: extract `threshold`, `sample_size`, `used_fallback`
+- Apply fallback logic if `used_fallback == true`
+- Clamp to `[MIN_THRESHOLD, MAX_THRESHOLD]` in shell
+- Log: computed P-value, sample size, outliers removed, final threshold
 
 ### Phase 4: Candidate matching (1 step)
 
@@ -307,7 +350,7 @@ Errors: 0
 
 - Pretty table printing:
   - Summary header
-  - Per-movie candidate list (piped through `column -t` or aligned manually)
+  - Per-movie candidate list using `printf` with fixed-width format specifiers (e.g., `%-40s %8s %-20s %s`). Do NOT use `column -t` — it is not available on all systems (notably some FreeBSD/minimal Linux images).
   - Final count and mode notice
 - JSON output via `--json` flag
 
@@ -328,6 +371,8 @@ Errors: 0
 | Source == Target | Print warning, skip all |
 | Movie with null digitalRelease or missing dates | Skip (no web date to measure) |
 | Movie already on target profile | Skip (already switched) |
+| Movie already has a downloaded file (`hasFile == true`) | Skip (already has a release) |
+| Movie is unmonitored (`monitored == false`) | Skip (search won't trigger) |
 | API unreachable | Print error, exit 1 |
 | All candidates already switched | "0 candidates" — success |
 | P95 computed below `MIN_THRESHOLD` | Clamp to `MIN_THRESHOLD`, log adjustment |
@@ -363,7 +408,7 @@ Or run in dry-run mode for a week first to observe:
 - `# shellcheck disable=SC3043` for `local`
 - Changelog version blocks (newest first)
 - `scripts_common.sh` for API helpers
-- `load_config "$(dirname "$0")/connect"` for config
+- `load_config "$(dirname "$0")/connect"` for config — note that `load_config` accepts an optional config directory as `$1`, defaulting to `$(dirname "$0")`. This script lives in `radarr/` (not `radarr/connect/`), so it MUST pass the path: `load_config "$(dirname "$0")/connect"`. See `radarr/research/release_date_stats.sh` for a working example of this pattern.
 - Local vars prefixed with underscore
 - Errors to stderr
 - Quote all variable expansions
