@@ -40,3 +40,29 @@ DRY_RUN="false"
 
 # Debug mode. When true, prints detailed diagnostic messages.
 DEBUG="false"
+
+# --- Auto Quality Switch settings (optional) ---
+# Quality profile names for the auto quality switch script.
+# SOURCE_PROFILE_NAME="Remux-2160p"
+# TARGET_PROFILE_NAME="WebDL-2160p"
+
+# Percentile threshold for web->physical gap (0.0-1.0).
+# P95 = wait until 95% of physical releases have appeared.
+# P_VALUE="0.95"
+
+# Minimum sample of movies with both dates needed to compute threshold.
+# Below this, FALLBACK_THRESHOLD is used.
+# MIN_SAMPLE="30"
+
+# Hardcoded fallback threshold (days) when sample is too small.
+# FALLBACK_THRESHOLD="365"
+
+# Clamping bounds for computed threshold.
+# MIN_THRESHOLD="90"
+# MAX_THRESHOLD="730"
+
+# Max movies to switch per run. 0 = unlimited.
+# MAX_SWITCH_PER_RUN="0"
+
+# Trigger Radarr search after profile switch.
+# TRIGGER_SEARCH="true"
