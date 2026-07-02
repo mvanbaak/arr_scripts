@@ -5,3 +5,38 @@
 # Radarr info used to talk to its api
 RADARR_API_URL="http://ip.of.radarr:7878/api/v3"
 RADARR_API_KEY="your_radarr_api_key"
+
+# TMDB API key for trailer lookups
+# Get one at https://www.themoviedb.org/settings/api
+TMDB_API_KEY="your_tmdb_api_key"
+
+# Trailer languages to download (comma-separated, ISO 639-1 with optional region)
+# "original" is a special value that resolves to the movie's original language at runtime
+TRAILER_LANGUAGES="original,pt-BR"
+
+# Subtitle languages to download for original-language trailers (comma-separated)
+# Uses yt-dlp's --sub-langs. Empty value disables subtitles.
+TRAILER_SUBTITLE_LANGS="pt-BR"
+
+# Path to a Netscape-format cookie file for yt-dlp YouTube authentication.
+# Optional - leave empty to download without authentication.
+# See docs/cookie-extraction.md for instructions on exporting cookies from your browser.
+YT_DLP_COOKIE_FILE=""
+
+# Autopulse notification (optional). Uncomment and set URL to enable Plex scan after trailer download.
+# AUTOPULSE_URL="http://ip:3030"
+# AUTOPULSE_TRIGGER="manual"
+# AUTOPULSE_AUTH_USER="username"
+# AUTOPULSE_AUTH_PASS="password"
+
+# yt-dlp format selector. Default gets best quality then recodes to MP4 for compatibility.
+# YT_DLP_FORMAT="bv*+ba/b"
+
+# Target container for --recode-video. MP4 ensures H.264+AAC — Direct Play on all devices.
+# YT_DLP_RECODE="mp4"
+
+# Dry-run mode. When true, skips actual yt-dlp download, shows what would happen.
+DRY_RUN="false"
+
+# Debug mode. When true, prints detailed diagnostic messages.
+DEBUG="false"

@@ -4,7 +4,10 @@
 
 This repository contains shell scripts and configuration files for Radarr automation, primarily focused on tagging movies with Dolby Vision metadata (FEL/MEL tags).
 
-**Primary Script:** `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
+**Scripts:**
+- `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
+- `radarr/connect/download_trailer.sh` - Downloads official trailers from TMDB/YouTube for movies in Radarr.
+- `radarr/connect/scripts_common.sh` - Shared library sourced by both scripts (config loading, executable checks, Radarr API helpers).
 
 ---
 
@@ -40,6 +43,23 @@ shellcheck -e SC3043 radarr/connect/tag_dvfelmel.sh
 ```
 
 Event types: `Test`, `MovieFileDelete`, `Download`, `Bulk`
+
+**Run the trailer script in test mode:**
+```bash
+./radarr/connect/download_trailer.sh
+```
+
+**Run in bulk mode (process all movies):**
+```bash
+./radarr/connect/download_trailer.sh bulk
+```
+
+**Direct invocation with arguments:**
+```bash
+./radarr/connect/download_trailer.sh <event_type> <movie_id> [movie_path]
+```
+
+Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
 
 ### Testing
 
@@ -152,8 +172,16 @@ function_name() {
 
 - Use comments to explain non-obvious logic
 - Document function purpose at the top
-- Include version history for significant changes
 - Reference external sources when basing code on others' work
+
+### Changelog Headers
+
+Every script must have a versioned changelog in its header comment block.
+- Bump version when adding features or fixing behavior (MAJOR.MINOR.PATCH)
+- Add new version block ABOVE the previous one (newest first)
+- Prefix each change with `#   * ` for consistent formatting
+- Use format: `# Version X.Y.Z (Released YYYY-MM-DD)`
+- List user-facing changes, not implementation details
 
 ### Configuration Files
 
@@ -207,22 +235,37 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 radarr/connect/
-  tag_dvfelmel.sh      # Main script
+  scripts_common.sh    # Shared library (sourced by both scripts)
+  tag_dvfelmel.sh      # Dolby Vision FEL/MEL tagging script
+  download_trailer.sh  # Trailer download script
   scripts.conf.sample  # Sample configuration
   scripts.conf         # Actual configuration (not in git)
+
+docs/
+  cookie-extraction.md  # Guide for exporting YouTube cookies for yt-dlp
 ```
 
 ---
 
 ## Dependencies
 
-Required executables (checked at runtime):
+Required executables for `tag_dvfelmel.sh` (checked at runtime):
 - curl
 - dovi_tool
 - ffmpeg
 - grep
 - jq
 - mktemp
+
+Required executables for `download_trailer.sh` (checked at runtime):
+- curl
+- cut
+- ffmpeg
+- jq
+- mkdir
+- mktemp
+- tr
+- yt-dlp
 
 ---
 
@@ -231,3 +274,19 @@ Required executables (checked at runtime):
 - For more extensive Radarr taggers, check out [Radarr DV HDR Tagarr](https://github.com/TRaSH-/Starr-taggers#radarr-dv-hdr-tagarr) from TRaSH-
 - Scripts are designed to run in Radarr Connect/post-process context
 - Compatible with FreeBSD and Linux environments
+
+Respond terse like smart caveman. All technical substance stay. Only fluff die.
+
+Rules:
+- Drop: articles (a/an/the), filler (just/really/basically), pleasantries, hedging
+- Fragments OK. Short synonyms. Technical terms exact. Code unchanged.
+- Pattern: [thing] [action] [reason]. [next step].
+- Not: "Sure! I'd be happy to help you with that."
+- Yes: "Bug in auth middleware. Fix:"
+
+Switch level: /caveman lite|full|ultra|wenyan
+Stop: "stop caveman" or "normal mode"
+
+Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
+
+Boundaries: code/commits/PRs written normal.

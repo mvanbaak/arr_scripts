@@ -19,6 +19,12 @@
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
 #
+# Version 0.3.0 (Released 2026-06-30)
+#   * DRY_RUN and DEBUG config variables with -n/-d CLI flags
+#   * Bulk mode enables dry-run and debug by default
+#   * Dry-run skips add/remove tag API calls
+#   * debug_log function gates DEBUG output
+#
 # Version 0.2.0 (Released 2026-06-30)
 #   * Cache tag ids to reduce api calls
 #
@@ -46,22 +52,16 @@
 # have a look at https://discord.com/channels/492590071455940612/1327957617661972510/1327957617661972510
 # The fine folks in the TRaSH-Guides discord have it figured out. Thanks for sharing!
 
-# Configuration
-# Read from file if found.
-# NOTE: sourcing executes arbitrary shell from scripts.conf; acceptable because
-# the file is gitignored, user-owned, and only readable by the script operator.
-SCRIPT_DIR=$(dirname "$0")
-if [ -f "${SCRIPT_DIR}/scripts.conf" ]
-then
-    . "${SCRIPT_DIR}/scripts.conf"
-fi
+# Load shared library and configuration
+. "$(dirname "$0")/scripts_common.sh"
+load_config
 
-# Set defaults
+# Tag-specific defaults
 : "${LOG_FILE:=none}" # If 'none' log to stdout/stderr
-: "${RADARR_API_URL:=http://ip:7878/api/v3}"
-: "${RADARR_API_KEY:=youreallythoughtiwouldputithereright}"
 : "${RADARR_TAG_FEL:=fel}"
 : "${RADARR_TAG_MEL:=mel}"
+: "${DRY_RUN:=false}"
+: "${DEBUG:=false}"
 
 # Information set on the environment by radarr
 # Can be overridden by command line arguments:
@@ -72,26 +72,10 @@ MOVIE_ID="${radarr_movie_id:-0}"
 MOVIE_FILE="${radarr_moviefile_path:-""}"
 
 # global variables, dont edit
-NEEDED_EXECUTABLES="curl dovi_tool ffmpeg grep jq mktemp"
 _TAG_CACHE=""
 
-check_needed_executables() {
-    for executable in ${NEEDED_EXECUTABLES}
-    do
-        if ! command -v "${executable}" >/dev/null 2>&1
-        then
-            echo "ERROR: Executable '${executable}' not found." >&2
-            exit 127
-        fi
-    done
-}
-
 _load_tag_cache() {
-    _TAG_CACHE=$(curl \
-        -s \
-        -H "Accept-Encoding: application/json" \
-        -H "X-Api-Key: ${RADARR_API_KEY}" \
-        "${RADARR_API_URL}/tag")
+    _TAG_CACHE=$(radarr_api_get "tag")
 }
 
 get_tag_id_by_label() {
@@ -149,11 +133,7 @@ movie_has_tag() {
         return 127
     fi
 
-    curl \
-        -s \
-        -H "Accept-Encoding: application/json" \
-        -H "X-Api-Key: ${RADARR_API_KEY}" \
-        "${RADARR_API_URL}/movie/${_movie_id}" | \
+    radarr_api_get "movie/${_movie_id}" | \
     jq -e ".tags | index(${_tag_id})" >/dev/null
 }
 
@@ -337,36 +317,47 @@ tag_movie() {
 
     if echo "${_rpu_summary}" | grep -q "Profile: 7 (FEL)"
     then
-        echo "DEBUG: FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        debug_log "FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
         echo "${_rpu_summary}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-        add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would add FEL tag, remove MEL tag for movie ${_movie_id}" >&2
+        else
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+            add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        fi
     elif echo "${_rpu_summary}" | grep -q "Profile: 7 (MEL)"
     then
-        echo "DEBUG: MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        debug_log "MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
         echo "${_rpu_summary}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-        add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would add MEL tag, remove FEL tag for movie ${_movie_id}" >&2
+        else
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        fi
     else
-        echo "DEBUG: No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        debug_log "No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would remove FEL and MEL tags for movie ${_movie_id}" >&2
+        else
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        fi
     fi
 }
 
 tag_all_movies() {
     local _counter _movie_list
     _counter=0
-    _movie_list=$(curl \
-        -s \
-        -H "Accept-Encoding: application/json" \
-        -H "X-Api-Key: ${RADARR_API_KEY}" \
-        "${RADARR_API_URL}/movie" | \
+    _movie_list=$(radarr_api_get "movie" | \
     jq -r 'sort_by(.id)[] | select(.movieFile != null) | "\(.id) \(.movieFile.path)"')
 
     while read -r id file; do
         _counter=$((_counter+=1))
-        echo "DEBUG: (${_counter}) Tagging movie '${id}' with path '${file}'"
+        debug_log "(${_counter}) Tagging movie '${id}' with path '${file}'"
         tag_movie "$id" "$file"
         # lame, but be nice to our radarr api
         sleep 1
@@ -376,7 +367,16 @@ EOF
 }
 
 # main script flow
-check_needed_executables
+check_needed_executables "curl dovi_tool ffmpeg grep jq mktemp"
+
+# Parse optional flags before positional args
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -n) DRY_RUN=true; shift ;;
+        -d) DEBUG=true; shift ;;
+        *) break ;;
+    esac
+done
 
 if [ -n "$1" ]
 then
@@ -395,25 +395,32 @@ fi
 
 case "${EVENT_TYPE}" in
     Test)
-        echo "DEBUG: Received test event, signal success"
+        debug_log "Received test event, signal success"
         exit 0
         ;;
     MovieFileDelete)
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
-        # On file delete, we should delete the tags if they are attached
-        remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
-        remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
+        debug_log "Got event ${EVENT_TYPE}, handling"
+        if [ "${DRY_RUN}" = "true" ]
+        then
+            echo "DRY-RUN: Would remove FEL and MEL tags for movie ${MOVIE_ID}" >&2
+        else
+            # On file delete, we should delete the tags if they are attached
+            remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
+            remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
+        fi
         exit 0
         ;;
     Download)
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         tag_movie "${MOVIE_ID}" "${MOVIE_FILE}"
         ;;
     [Bb]ulk)
         # This event does not exist in radarr, but can be triggered
         # by a cli invokation of this script. eg
         # ./tag_dvfelmel.sh bulk
-        echo "DEBUG: Got event ${EVENT_TYPE}, handling"
+        : "${DRY_RUN:=true}"
+        : "${DEBUG:=true}"
+        debug_log "Got event ${EVENT_TYPE}, handling"
         tag_all_movies
         ;;
     *)
