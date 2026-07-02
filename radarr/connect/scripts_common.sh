@@ -7,14 +7,17 @@
 # Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info, debug_log
 
 load_config() {
-    # Configuration
-    # Read from file if found.
+    # Read config from file if found.
+    # Accepts optional config directory as $1.
+    # Defaults to directory of the invoking script ($0).
     # NOTE: sourcing executes arbitrary shell from scripts.conf; acceptable because
     # the file is gitignored, user-owned, and only readable by the script operator.
-    SCRIPT_DIR=$(dirname "$0")
-    if [ -f "${SCRIPT_DIR}/scripts.conf" ]
+    local _config_dir
+    _config_dir="${1:-$(dirname "$0")}"
+
+    if [ -f "${_config_dir}/scripts.conf" ]
     then
-        . "${SCRIPT_DIR}/scripts.conf"
+        . "${_config_dir}/scripts.conf"
     fi
 
     # Set defaults
