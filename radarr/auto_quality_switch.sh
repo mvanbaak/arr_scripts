@@ -11,6 +11,10 @@
 # * curl (tested with 8.10.1)
 # * jq (tested with 1.7.1)
 #
+# Version 0.2.0 (Released 2026-07-14)
+#   * Remove inCinemas requirement — Netflix/streaming-only originals without
+#     theater dates are now eligible for profile switching
+#
 # Version 0.1.0 (Released 2026-07-02)
 #   * Initial implementation
 
@@ -210,7 +214,6 @@ _CANDIDATES=$(printf '%s' "${_ALL_MOVIES}" | jq \
     .digitalRelease != null
     and .physicalRelease == null
     and .qualityProfileId == ($source_id | tonumber)
-    and .inCinemas != null
     and .hasFile == false
     and .monitored == true
 ) | ((.digitalRelease | fromdateiso8601)) as $web_epoch

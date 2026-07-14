@@ -195,8 +195,6 @@ for movie in all_movies:
         skip  # Already has physical
     if movie.qualityProfileId != source_id:
         skip  # Already on a different profile
-    if movie.inCinemas == null:
-        skip  # No cinema date (pre-release, not relevant)
     if movie.hasFile == true:
         skip  # Already has a downloaded file
     if movie.monitored == false:
