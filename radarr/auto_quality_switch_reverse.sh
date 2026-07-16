@@ -2,24 +2,16 @@
 # Dont warn on the word `local`
 # shellcheck disable=SC3043
 
-# Script to automatically switch movies from a Remux-only quality profile
-# to a WebDL-enabled profile when no physical release appears within a
-# statistically determined threshold (P95 of the web->physical gap).
+# Script to switch movies back to a Remux-only quality profile when
+# physical release dates appear for movies previously switched to WebDL.
+# Uses Radarr tags to identify movies switched by the forward script.
 #
 # Requirements:
 # * sh (tested with sh from FreeBSD base FreeBSD 14.1)
 # * curl (tested with 8.10.1)
 # * jq (tested with 1.7.1)
 #
-# Version 0.3.0 (Released 2026-07-14)
-#   * Add auto-switched tag to movies on profile switch
-#   * Enables reverse script to identify previously switched movies
-#
-# Version 0.2.0 (Released 2026-07-14)
-#   * Remove inCinemas requirement — Netflix/streaming-only originals without
-#     theater dates are now eligible for profile switching
-#
-# Version 0.1.0 (Released 2026-07-02)
+# Version 0.1.0 (Released 2026-07-14)
 #   * Initial implementation
 
 # Load shared library and configuration
@@ -27,17 +19,12 @@
 load_config "$(dirname "$0")/connect"
 
 # Script-specific defaults
-: "${SOURCE_PROFILE_NAME:=Remux-2160p}"
-: "${TARGET_PROFILE_NAME:=WebDL-2160p}"
-: "${P_VALUE:=0.95}"
-: "${MIN_SAMPLE:=30}"
-: "${FALLBACK_THRESHOLD:=365}"
-: "${MIN_THRESHOLD:=90}"
-: "${MAX_THRESHOLD:=730}"
+: "${SWITCH_TO_PROFILE_NAME:=Remux-2160p}"
+: "${SWITCH_FROM_PROFILE_NAME:=WebDL-2160p}"
+: "${AUTO_SWITCH_TAG:=auto-switched}"
 : "${DRY_RUN:=true}"
 : "${MAX_SWITCH_PER_RUN:=0}"
 : "${TRIGGER_SEARCH:=true}"
-: "${AUTO_SWITCH_TAG:=auto-switched}"
 : "${DEBUG:=false}"
 
 # CLI flags
@@ -59,10 +46,9 @@ done
 
 check_needed_executables "curl jq"
 
-debug_log "=== Auto Quality Profile Switch ==="
-debug_log "Source profile: ${SOURCE_PROFILE_NAME}"
-debug_log "Target profile: ${TARGET_PROFILE_NAME}"
-debug_log "P_VALUE: ${P_VALUE}"
+debug_log "=== Auto Quality Profile Switch (Reverse) ==="
+debug_log "Switch to profile: ${SWITCH_TO_PROFILE_NAME}"
+debug_log "Switch from profile: ${SWITCH_FROM_PROFILE_NAME}"
 
 # --apply flag overrides DRY_RUN config
 if [ "${_FLAG_APPLY}" = "true" ]
@@ -77,7 +63,7 @@ then
 fi
 
 ##############################################################################
-# Phase 2: Profile resolution
+# Phase 1: Profile resolution
 ##############################################################################
 
 _resolve_profile_id() {
@@ -116,33 +102,33 @@ _resolve_profile_id() {
     printf '%s' "${_id}"
 }
 
-debug_log "Resolving source profile ID"
-SOURCE_PROFILE_ID=$(_resolve_profile_id "${SOURCE_PROFILE_NAME}")
+debug_log "Resolving switch-to profile ID"
+SWITCH_TO_PROFILE_ID=$(_resolve_profile_id "${SWITCH_TO_PROFILE_NAME}")
 _resolve_rc=$?
 if [ "${_resolve_rc}" -ne 0 ]
 then
     exit 1
 fi
-debug_log "Source profile: ${SOURCE_PROFILE_NAME} (id: ${SOURCE_PROFILE_ID})"
+debug_log "Switch-to profile: ${SWITCH_TO_PROFILE_NAME} (id: ${SWITCH_TO_PROFILE_ID})"
 
-debug_log "Resolving target profile ID"
-TARGET_PROFILE_ID=$(_resolve_profile_id "${TARGET_PROFILE_NAME}")
+debug_log "Resolving switch-from profile ID"
+SWITCH_FROM_PROFILE_ID=$(_resolve_profile_id "${SWITCH_FROM_PROFILE_NAME}")
 _resolve_rc=$?
 if [ "${_resolve_rc}" -ne 0 ]
 then
     exit 1
 fi
-debug_log "Target profile: ${TARGET_PROFILE_NAME} (id: ${TARGET_PROFILE_ID})"
+debug_log "Switch-from profile: ${SWITCH_FROM_PROFILE_NAME} (id: ${SWITCH_FROM_PROFILE_ID})"
 
-if [ "${SOURCE_PROFILE_ID}" = "${TARGET_PROFILE_ID}" ]
+if [ "${SWITCH_TO_PROFILE_ID}" = "${SWITCH_FROM_PROFILE_ID}" ]
 then
-    echo "ERROR: Source and target profiles are the same (id: ${SOURCE_PROFILE_ID})" >&2
+    echo "ERROR: Switch-to and switch-from profiles are the same (id: ${SWITCH_TO_PROFILE_ID})" >&2
     echo "ERROR: Nothing to switch. Exiting." >&2
     exit 1
 fi
 
 ##############################################################################
-# Phase 2.5: Tag resolution
+# Phase 2: Tag resolution
 ##############################################################################
 
 debug_log "Resolving auto-switch tag"
@@ -188,7 +174,7 @@ else
 fi
 
 ##############################################################################
-# Phase 3: Threshold computation
+# Phase 3: Candidate matching
 ##############################################################################
 
 debug_log "Fetching all movies from Radarr API"
@@ -200,78 +186,15 @@ then
     exit 1
 fi
 
-_THRESHOLD_JSON=$(printf '%s' "${_ALL_MOVIES}" | jq \
-    --arg p_value "${P_VALUE}" \
-    --arg min_sample "${MIN_SAMPLE}" \
-    '
-def iqr_filter:
-    if length == 0 then []
-    else
-        sort as $sorted
-        | (($sorted | length) * 0.25 | floor) as $q1_idx
-        | (($sorted | length) * 0.75 | floor) as $q3_idx
-        | $sorted[$q1_idx] as $q1
-        | $sorted[$q3_idx] as $q3
-        | ($q3 - $q1) as $iqr
-        | ($q1 - 1.5 * $iqr) as $lower
-        | ($q3 + 1.5 * $iqr) as $upper
-        | [.[] | select(. >= $lower and . <= $upper)]
-    end;
-
-[.[] | select(.digitalRelease != null and .physicalRelease != null)
- | ((.physicalRelease | fromdateiso8601) - (.digitalRelease | fromdateiso8601)) / 86400] as $gaps
-
-| if ($gaps | length) < ($min_sample | tonumber) then
-    {threshold: null, sample_size: ($gaps | length), used_fallback: true}
-else
-    ($gaps | iqr_filter | sort) as $filtered
-    | ($filtered[(($filtered | length) * ($p_value | tonumber)) | floor]) as $p_val
-    | {threshold: $p_val, sample_size: ($gaps | length), filtered_size: ($filtered | length), used_fallback: false}
-end
-')
-
-_THRESHOLD=$(printf '%s' "${_THRESHOLD_JSON}" | jq -r '.threshold')
-_SAMPLE_SIZE=$(printf '%s' "${_THRESHOLD_JSON}" | jq -r '.sample_size')
-_USED_FALLBACK=$(printf '%s' "${_THRESHOLD_JSON}" | jq -r '.used_fallback')
-
-if [ "${_USED_FALLBACK}" = "true" ] || [ -z "${_THRESHOLD}" ] || [ "${_THRESHOLD}" = "null" ]
-then
-    _THRESHOLD="${FALLBACK_THRESHOLD}"
-    debug_log "Using fallback threshold: ${_THRESHOLD}d (sample size: ${_SAMPLE_SIZE})"
-fi
-
-# Clamp to [MIN_THRESHOLD, MAX_THRESHOLD]
-if [ "${_THRESHOLD}" -lt "${MIN_THRESHOLD}" ] 2>/dev/null
-then
-    _THRESHOLD="${MIN_THRESHOLD}"
-    debug_log "Threshold clamped to MIN_THRESHOLD: ${_THRESHOLD}d"
-fi
-
-if [ "${_THRESHOLD}" -gt "${MAX_THRESHOLD}" ] 2>/dev/null
-then
-    _THRESHOLD="${MAX_THRESHOLD}"
-    debug_log "Threshold clamped to MAX_THRESHOLD: ${_THRESHOLD}d"
-fi
-
-##############################################################################
-# Phase 4: Candidate matching
-##############################################################################
-
 _CANDIDATES=$(printf '%s' "${_ALL_MOVIES}" | jq \
-    --arg threshold "${_THRESHOLD}" \
-    --arg source_id "${SOURCE_PROFILE_ID}" \
+    --arg tag_id "${AUTO_SWITCH_TAG_ID}" \
+    --arg from_profile_id "${SWITCH_FROM_PROFILE_ID}" \
     '
 [.[] | select(
-    .digitalRelease != null
-    and .physicalRelease == null
-    and .qualityProfileId == ($source_id | tonumber)
-    and .hasFile == false
-    and .monitored == true
-) | ((.digitalRelease | fromdateiso8601)) as $web_epoch
-  | ((now - $web_epoch) / 86400) as $waiting_days
-  | select($waiting_days >= ($threshold | tonumber))
-  | {id: .id, title: .title, year: .year, waiting_days: $waiting_days, qualityProfileId: .qualityProfileId}]
-| sort_by(.waiting_days) | reverse
+    (.tags | index(($tag_id | tonumber)))
+    and .physicalRelease != null
+    and .qualityProfileId == ($from_profile_id | tonumber)
+) | {id: .id, title: .title, year: .year, physicalRelease: .physicalRelease, qualityProfileId: .qualityProfileId}]
 ')
 
 _CANDIDATE_COUNT=$(printf '%s' "${_CANDIDATES}" | jq 'length')
@@ -279,11 +202,10 @@ _CANDIDATE_COUNT=$(printf '%s' "${_CANDIDATES}" | jq 'length')
 # Unset to free memory
 unset _ALL_MOVIES
 
-debug_log "Threshold: P${P_VALUE} = ${_THRESHOLD}d (based on ${_SAMPLE_SIZE} movies with both dates)"
 debug_log "Candidates: ${_CANDIDATE_COUNT} movies"
 
 ##############################################################################
-# Phase 7: Output (table or JSON)
+# Phase 6: Output (table or JSON)
 ##############################################################################
 
 if [ "${_FLAG_JSON}" = "true" ]
@@ -296,27 +218,25 @@ then
         _SWITCHED_COUNT=0
 
         printf '%s' "${_CANDIDATES}" | jq \
-            --arg threshold "${_THRESHOLD}" \
-            --arg p_value "${P_VALUE}" \
-            --arg sample_size "${_SAMPLE_SIZE}" \
-            --arg src_name "${SOURCE_PROFILE_NAME}" \
-            --arg src_id "${SOURCE_PROFILE_ID}" \
-            --arg tgt_name "${TARGET_PROFILE_NAME}" \
-            --arg tgt_id "${TARGET_PROFILE_ID}" \
+            --arg switch_to_name "${SWITCH_TO_PROFILE_NAME}" \
+            --arg switch_to_id "${SWITCH_TO_PROFILE_ID}" \
+            --arg switch_from_name "${SWITCH_FROM_PROFILE_NAME}" \
+            --arg switch_from_id "${SWITCH_FROM_PROFILE_ID}" \
+            --arg tag_label "${AUTO_SWITCH_TAG}" \
+            --arg tag_id "${AUTO_SWITCH_TAG_ID}" \
             --arg switched_count "${_SWITCHED_COUNT}" \
             --arg searched_count "0" \
             --arg search_triggered "false" \
             --argjson dry_run "${DRY_RUN}" \
             '
 {
-    threshold_days: ($threshold | tonumber),
-    p_value: ($p_value | tonumber),
-    sample_size: ($sample_size | tonumber),
-    source_profile: {id: ($src_id | tonumber), name: $src_name},
-    target_profile: {id: ($tgt_id | tonumber), name: $tgt_name},
+    switch_to_profile: {id: ($switch_to_id | tonumber), name: $switch_to_name},
+    switch_from_profile: {id: ($switch_from_id | tonumber), name: $switch_from_name},
+    tag: {id: ($tag_id | tonumber), label: $tag_label},
     candidates: .,
     candidate_count: length,
     switched_count: ($switched_count | tonumber),
+    tags_removed: ($switched_count | tonumber),
     searched_count: ($searched_count | tonumber),
     search_triggered: ($search_triggered == "true"),
     dry_run: $dry_run
@@ -336,23 +256,23 @@ then
     if [ "${_FLAG_QUIET}" = "false" ]
     then
         echo
-        echo "Auto Quality Profile Switch"
-        echo "==========================="
+        echo "Auto Quality Profile Switch (Reverse)"
+        echo "====================================="
         echo
-        echo "Threshold: P${P_VALUE} = ${_THRESHOLD}d (based on ${_SAMPLE_SIZE} movies with both dates)"
-        echo "Source profile: ${SOURCE_PROFILE_NAME} (id: ${SOURCE_PROFILE_ID})"
-        echo "Target profile: ${TARGET_PROFILE_NAME} (id: ${TARGET_PROFILE_ID})"
+        echo "Source profile: ${SWITCH_FROM_PROFILE_NAME} (id: ${SWITCH_FROM_PROFILE_ID})"
+        echo "Target profile: ${SWITCH_TO_PROFILE_NAME} (id: ${SWITCH_TO_PROFILE_ID})"
+        echo "Tag: ${AUTO_SWITCH_TAG} (id: ${AUTO_SWITCH_TAG_ID})"
         echo
     fi
 
     if [ "${_CANDIDATE_COUNT}" -gt 0 ] && [ "${_FLAG_QUIET}" = "false" ]
     then
-        printf '%-50s %8s %-20s  %s\n' "Movie" "Waiting" "Current Profile" "-> Target"
-        printf '%-50s %8s %-20s  %s\n' "-----" "-------" "---------------" "--------"
+        printf '%-50s %-12s %-20s  %s\n' "Movie" "Phys Release" "Current Profile" "-> Target"
+        printf '%-50s %-12s %-20s  %s\n' "-----" "------------" "---------------" "--------"
 
-        printf '%s' "${_CANDIDATES}" | jq -r '.[] | "\(.title) (\(.year))|\(.waiting_days)|\(.qualityProfileId)"' | \
-        while IFS='|' read -r _title _waiting _profile_id; do
-            printf '%-50s %6dd  %-20s  -> %s\n' "${_title}" "${_waiting%.*}" "${SOURCE_PROFILE_NAME}" "${TARGET_PROFILE_NAME}"
+        printf '%s' "${_CANDIDATES}" | jq -r '.[] | "\(.title) (\(.year))|\(.physicalRelease[:10])|\(.qualityProfileId)"' | \
+        while IFS='|' read -r _title _phys_release _profile_id; do
+            printf '%-50s %-12s %-20s  -> %s\n' "${_title}" "${_phys_release}" "${SWITCH_FROM_PROFILE_NAME}" "${SWITCH_TO_PROFILE_NAME}"
         done
         echo
     fi
@@ -376,7 +296,7 @@ then
 fi
 
 ##############################################################################
-# Phase 5: Switch execution
+# Phase 4: Switch execution
 ##############################################################################
 
 _SWITCHED_COUNT=0
@@ -397,9 +317,9 @@ do
         break
     fi
 
-    _payload=$(printf '{"movieIds": [%s], "qualityProfileId": %s}' "${_movie_id}" "${TARGET_PROFILE_ID}")
+    _payload=$(printf '{"movieIds": [%s], "qualityProfileId": %s}' "${_movie_id}" "${SWITCH_TO_PROFILE_ID}")
 
-    debug_log "Switching movie ${_movie_id} to profile ${TARGET_PROFILE_ID}"
+    debug_log "Switching movie ${_movie_id} to profile ${SWITCH_TO_PROFILE_ID}"
 
     _response=$(curl \
         -s \
@@ -425,17 +345,12 @@ do
             fi
             debug_log "  Switched (HTTP ${_http_code})"
 
-            # Add auto-switch tag
+            # Remove auto-switch tag
             _movie_json=$(radarr_api_get "movie/${_movie_id}")
             if [ -n "${_movie_json}" ]
             then
-                _existing_tags=$(printf '%s' "${_movie_json}" | jq -r '.tags | join(",")')
-                if [ -z "${_existing_tags}" ]
-                then
-                    _new_tags="[${AUTO_SWITCH_TAG_ID}]"
-                else
-                    _new_tags=$(printf '%s' "${_existing_tags}" | jq -r --argjson tag "${AUTO_SWITCH_TAG_ID}" 'split(",") | map(tonumber) + [$tag]')
-                fi
+                _new_tags=$(printf '%s' "${_movie_json}" | jq -r --argjson tag "${AUTO_SWITCH_TAG_ID}" \
+                    '[.tags[] | select(. != $tag)]')
 
                 _tag_response=$(curl \
                     -s \
@@ -450,10 +365,10 @@ do
                 _tag_http=$(printf '%s' "${_tag_response}" | tail -1)
                 case "${_tag_http}" in
                     2*)
-                        debug_log "  Tagged (HTTP ${_tag_http})"
+                        debug_log "  Untagged (HTTP ${_tag_http})"
                         ;;
                     *)
-                        echo "WARN: Failed to tag movie ${_movie_id} (HTTP ${_tag_http})" >&2
+                        echo "WARN: Failed to remove tag from movie ${_movie_id} (HTTP ${_tag_http})" >&2
                         ;;
                 esac
             fi
@@ -470,7 +385,7 @@ rm -f "${_SWITCH_TEMP}"
 trap - INT TERM EXIT
 
 ##############################################################################
-# Phase 6: Search trigger
+# Phase 5: Search trigger
 ##############################################################################
 
 _SEARCH_QUEUED=0
@@ -514,26 +429,24 @@ if [ "${_DEFER_JSON}" = "true" ]
 then
     # JSON output with real switched_count and searched_count
     printf '%s' "${_CANDIDATES}" | jq \
-        --arg threshold "${_THRESHOLD}" \
-        --arg p_value "${P_VALUE}" \
-        --arg sample_size "${_SAMPLE_SIZE}" \
-        --arg src_name "${SOURCE_PROFILE_NAME}" \
-        --arg src_id "${SOURCE_PROFILE_ID}" \
-        --arg tgt_name "${TARGET_PROFILE_NAME}" \
-        --arg tgt_id "${TARGET_PROFILE_ID}" \
+        --arg switch_to_name "${SWITCH_TO_PROFILE_NAME}" \
+        --arg switch_to_id "${SWITCH_TO_PROFILE_ID}" \
+        --arg switch_from_name "${SWITCH_FROM_PROFILE_NAME}" \
+        --arg switch_from_id "${SWITCH_FROM_PROFILE_ID}" \
+        --arg tag_label "${AUTO_SWITCH_TAG}" \
+        --arg tag_id "${AUTO_SWITCH_TAG_ID}" \
         --arg switched_count "${_SWITCHED_COUNT}" \
         --arg searched_count "${_SEARCH_QUEUED}" \
         --argjson dry_run false \
         '
 {
-    threshold_days: ($threshold | tonumber),
-    p_value: ($p_value | tonumber),
-    sample_size: ($sample_size | tonumber),
-    source_profile: {id: ($src_id | tonumber), name: $src_name},
-    target_profile: {id: ($tgt_id | tonumber), name: $tgt_name},
+    switch_to_profile: {id: ($switch_to_id | tonumber), name: $switch_to_name},
+    switch_from_profile: {id: ($switch_from_id | tonumber), name: $switch_from_name},
+    tag: {id: ($tag_id | tonumber), label: $tag_label},
     candidates: .,
     candidate_count: length,
     switched_count: ($switched_count | tonumber),
+    tags_removed: ($switched_count | tonumber),
     searched_count: ($searched_count | tonumber),
     search_triggered: (($searched_count | tonumber) > 0),
     dry_run: false
@@ -542,7 +455,8 @@ then
     echo
 elif [ "${_FLAG_QUIET}" = "false" ]
 then
-    echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${TARGET_PROFILE_NAME}"
+    echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${SWITCH_TO_PROFILE_NAME}"
+    echo "TAGS: Removed auto-switched tag from ${_SWITCHED_COUNT} movies"
     if [ "${_SEARCH_QUEUED}" -gt 0 ]
     then
         echo "QUEUED: ${_SEARCH_QUEUED} movies sent for search"

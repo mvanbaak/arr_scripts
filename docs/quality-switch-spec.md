@@ -6,6 +6,8 @@ Radarr profiles can pin movies to Remux-only quality. As studios increasingly sk
 
 **Goal:** Automatically detect movies unlikely to ever get a physical release and switch them to a quality profile that allows WebDL.
 
+**See also:** `quality-switch-reverse-spec.md` for the reverse script that switches movies back when physical releases appear.
+
 ## 2. Research Summary
 
 Empirical analysis of 2,631 movies with cinema dates yields:

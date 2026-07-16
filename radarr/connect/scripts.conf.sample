@@ -66,3 +66,7 @@ DEBUG="false"
 
 # Trigger Radarr search after profile switch.
 # TRIGGER_SEARCH="true"
+
+# Radarr tag to mark movies switched by the forward script.
+# Used by the reverse script to identify candidates for switching back.
+# AUTO_SWITCH_TAG="auto-switched"
