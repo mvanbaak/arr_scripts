@@ -11,6 +11,10 @@
 # * curl (tested with 8.10.1)
 # * jq (tested with 1.7.1)
 #
+# Version 0.4.1 (Released 2026-07-16)
+#   * Fix _LOG_COUNT uninitialized when migration mode has 0 candidates
+#   * Fix migration dry-run JSON output to use filtered candidates and include log fields
+#
 # Version 0.4.0 (Released 2026-07-14)
 #   * Add --migrate flag for one-time library migration
 #   * Migration mode checks file quality: switch WebDL, log others for review
@@ -302,6 +306,7 @@ debug_log "Candidates: ${_CANDIDATE_COUNT} movies"
 
 _SWITCH_CANDIDATES="[]"
 _LOG_CANDIDATES="[]"
+_LOG_COUNT=0
 
 if [ "${_FLAG_MIGRATE}" = "true" ] && [ "${_CANDIDATE_COUNT}" -gt 0 ]
 then
@@ -372,19 +377,52 @@ then
         # Dry-run or no candidates: output JSON immediately and exit
         _SWITCHED_COUNT=0
 
-        printf '%s' "${_CANDIDATES}" | jq \
-            --arg threshold "${_THRESHOLD}" \
-            --arg p_value "${P_VALUE}" \
-            --arg sample_size "${_SAMPLE_SIZE}" \
-            --arg src_name "${SOURCE_PROFILE_NAME}" \
-            --arg src_id "${SOURCE_PROFILE_ID}" \
-            --arg tgt_name "${TARGET_PROFILE_NAME}" \
-            --arg tgt_id "${TARGET_PROFILE_ID}" \
-            --arg switched_count "${_SWITCHED_COUNT}" \
-            --arg searched_count "0" \
-            --arg search_triggered "false" \
-            --argjson dry_run "${DRY_RUN}" \
-            '
+        if [ "${_FLAG_MIGRATE}" = "true" ]
+        then
+            printf '%s' "${_SWITCH_CANDIDATES}" | jq \
+                --arg threshold "${_THRESHOLD}" \
+                --arg p_value "${P_VALUE}" \
+                --arg sample_size "${_SAMPLE_SIZE}" \
+                --arg src_name "${SOURCE_PROFILE_NAME}" \
+                --arg src_id "${SOURCE_PROFILE_ID}" \
+                --arg tgt_name "${TARGET_PROFILE_NAME}" \
+                --arg tgt_id "${TARGET_PROFILE_ID}" \
+                --arg switched_count "${_SWITCHED_COUNT}" \
+                --arg log_count "${_LOG_COUNT}" \
+                --argjson dry_run "${DRY_RUN}" \
+                --argjson log_candidates "${_LOG_CANDIDATES}" \
+                '
+{
+    threshold_days: ($threshold | tonumber),
+    p_value: ($p_value | tonumber),
+    sample_size: ($sample_size | tonumber),
+    source_profile: {id: ($src_id | tonumber), name: $src_name},
+    target_profile: {id: ($tgt_id | tonumber), name: $tgt_name},
+    candidates: .,
+    candidate_count: length,
+    switched_count: ($switched_count | tonumber),
+    log_count: ($log_count | tonumber),
+    log_candidates: $log_candidates,
+    searched_count: 0,
+    search_triggered: false,
+    dry_run: $dry_run,
+    migrate: true
+}
+'
+        else
+            printf '%s' "${_CANDIDATES}" | jq \
+                --arg threshold "${_THRESHOLD}" \
+                --arg p_value "${P_VALUE}" \
+                --arg sample_size "${_SAMPLE_SIZE}" \
+                --arg src_name "${SOURCE_PROFILE_NAME}" \
+                --arg src_id "${SOURCE_PROFILE_ID}" \
+                --arg tgt_name "${TARGET_PROFILE_NAME}" \
+                --arg tgt_id "${TARGET_PROFILE_ID}" \
+                --arg switched_count "${_SWITCHED_COUNT}" \
+                --arg searched_count "0" \
+                --arg search_triggered "false" \
+                --argjson dry_run "${DRY_RUN}" \
+                '
 {
     threshold_days: ($threshold | tonumber),
     p_value: ($p_value | tonumber),
@@ -399,6 +437,7 @@ then
     dry_run: $dry_run
 }
 '
+        fi
         echo
         exit 0
     fi
