@@ -2,6 +2,160 @@
 
 Random collection of scripts and configuration files used by *arr tools in my setup
 
+### auto_quality_switch.sh
+
+Automatically switches movies from a Remux-only profile to a WebDL-enabled
+profile when no physical release appears within a statistically determined
+threshold (P95 of the web-to-physical gap, computed from your own library).
+
+Movies that wait longer than the threshold for a physical release are
+unlikely to ever get one. The script switches their profile so Radarr can
+grab a WebDL release instead of leaving them in permanent limbo.
+
+#### Prerequisites
+
+- `curl` and `jq` 1.6+ (installed by default on most systems)
+- Radarr API URL and key configured in `scripts.conf`
+
+Install `jq` if missing:
+
+```sh
+# FreeBSD
+pkg install jq
+
+# Debian / Ubuntu
+apt install jq
+
+# Fedora / RHEL
+dnf install jq
+
+# macOS
+brew install jq
+```
+
+#### Quick start
+
+1. Copy and edit the config:
+
+```sh
+cp radarr/connect/scripts.conf.sample radarr/connect/scripts.conf
+```
+
+2. Set `RADARR_API_URL` and `RADARR_API_KEY` in `scripts.conf`.
+   Set `SOURCE_PROFILE_NAME` and `TARGET_PROFILE_NAME` to match your
+   Radarr quality profile names exactly (case-sensitive).
+
+3. Run in dry-run mode (default) to preview what would switch:
+
+```sh
+./radarr/auto_quality_switch.sh
+```
+
+4. Run with `--apply` to actually switch profiles:
+
+```sh
+./radarr/auto_quality_switch.sh --apply
+```
+
+#### Migration mode
+
+After initial setup, run `--migrate` once to fix existing movies that
+already have downloaded files on the wrong profile:
+
+```sh
+# Preview what migration would do
+./radarr/auto_quality_switch.sh --migrate
+
+# Apply migration
+./radarr/auto_quality_switch.sh --migrate --apply
+```
+
+Migration checks each movie's file quality source:
+- **WebDL/WebRip files** — switches profile automatically
+- **Other files** (Bluray, Remux, HDTV, etc.) — logged to stderr for
+  manual review
+
+Migration never triggers search — review the logged movies first.
+
+#### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--apply` | Actually switch profiles (overrides `DRY_RUN` config) |
+| `--migrate` | One-time library migration mode |
+| `-n`, `--dry-run` | Preview mode, no changes (default) |
+| `-j`, `--json` | Output machine-readable JSON |
+| `-q`, `--quiet` | Only errors and counts, no per-movie list |
+| `-d`, `--debug` | Verbose debug logging to stderr |
+
+#### Scheduling
+
+Add to crontab for daily automated runs:
+
+```cron
+# Dry-run first — review the log for a week
+0 6 * * * /path/to/radarr/auto_quality_switch.sh >> /var/log/quality-switch.log 2>&1
+
+# Then switch to apply mode
+0 6 * * * /path/to/radarr/auto_quality_switch.sh --apply >> /var/log/quality-switch.log 2>&1
+```
+
+---
+
+### auto_quality_switch_reverse.sh
+
+Switches movies back to Remux-only profiles when physical release dates
+appear for movies previously switched by the forward script. Uses a Radarr
+tag (`auto-switched`) to track which movies were switched.
+
+Run weekly — physical releases don't appear daily.
+
+#### Quick start
+
+1. Uses the same `scripts.conf` as the forward script.
+2. Preview candidates:
+
+```sh
+./radarr/auto_quality_switch_reverse.sh
+```
+
+3. Apply reverse switch:
+
+```sh
+./radarr/auto_quality_switch_reverse.sh --apply
+```
+
+The reverse script switches the profile and triggers a search for the
+Remux release. Radarr handles the rest — downloads the Remux, removes
+the old WebDL file.
+
+#### Scheduling
+
+```cron
+# Weekly, Sunday at 7am
+0 7 * * 0 /path/to/radarr/auto_quality_switch_reverse.sh --apply >> /var/log/quality-switch-reverse.log 2>&1
+```
+
+#### Flags
+
+Same as the forward script (see table above), except `--migrate` is not
+available on the reverse script.
+
+---
+
+### scripts.conf.sample
+
+Configuration file used by all Connect scripts and the auto quality switch
+scripts. Copy to `scripts.conf` and edit:
+
+```sh
+cp radarr/connect/scripts.conf.sample radarr/connect/scripts.conf
+```
+
+See the sample file for all available settings with documentation.
+
+---
+
 ## Contributing
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/) and the conventions documented in [AGENTS.md](AGENTS.md).
@@ -13,10 +167,6 @@ If you need more features or better maintained taggers, check out the [Radarr DV
 ## radarr/connect
 
 Script and supporting files to be used as Connect / postprocess scripts in radarr.
-
-### scripts.conf.sample
-
-Configuration file used by all Connect scripts
 
 ### tag_dvfelmel.sh
 
