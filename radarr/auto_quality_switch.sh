@@ -11,6 +11,10 @@
 # * curl (tested with 8.10.1)
 # * jq (tested with 1.7.1)
 #
+# Version 0.4.0 (Released 2026-07-14)
+#   * Add --migrate flag for one-time library migration
+#   * Migration mode checks file quality: switch WebDL, log others for review
+#
 # Version 0.3.0 (Released 2026-07-14)
 #   * Add auto-switched tag to movies on profile switch
 #   * Enables reverse script to identify previously switched movies
@@ -44,11 +48,13 @@ load_config "$(dirname "$0")/connect"
 _FLAG_APPLY=false
 _FLAG_JSON=false
 _FLAG_QUIET=false
+_FLAG_MIGRATE=false
 _DEFER_JSON=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --apply) _FLAG_APPLY=true; shift ;;
+        --migrate) _FLAG_MIGRATE=true; shift ;;
         -n|--dry-run) DRY_RUN=true; shift ;;
         -j|--json) _FLAG_JSON=true; shift ;;
         -q|--quiet) _FLAG_QUIET=true; shift ;;
@@ -257,20 +263,28 @@ fi
 # Phase 4: Candidate matching
 ##############################################################################
 
+if [ "${_FLAG_MIGRATE}" = "true" ]
+then
+    _HAS_FILE=true
+else
+    _HAS_FILE=false
+fi
+
 _CANDIDATES=$(printf '%s' "${_ALL_MOVIES}" | jq \
     --arg threshold "${_THRESHOLD}" \
     --arg source_id "${SOURCE_PROFILE_ID}" \
+    --argjson has_file "${_HAS_FILE}" \
     '
 [.[] | select(
     .digitalRelease != null
     and .physicalRelease == null
     and .qualityProfileId == ($source_id | tonumber)
-    and .hasFile == false
+    and .hasFile == $has_file
     and .monitored == true
 ) | ((.digitalRelease | fromdateiso8601)) as $web_epoch
   | ((now - $web_epoch) / 86400) as $waiting_days
   | select($waiting_days >= ($threshold | tonumber))
-  | {id: .id, title: .title, year: .year, waiting_days: $waiting_days, qualityProfileId: .qualityProfileId}]
+  | {id: .id, title: .title, year: .year, waiting_days: $waiting_days, qualityProfileId: .qualityProfileId, movieFileId: .movieFileId}]
 | sort_by(.waiting_days) | reverse
 ')
 
@@ -281,6 +295,69 @@ unset _ALL_MOVIES
 
 debug_log "Threshold: P${P_VALUE} = ${_THRESHOLD}d (based on ${_SAMPLE_SIZE} movies with both dates)"
 debug_log "Candidates: ${_CANDIDATE_COUNT} movies"
+
+##############################################################################
+# Phase 4.5: Migration mode — classify by quality source
+##############################################################################
+
+_SWITCH_CANDIDATES="[]"
+_LOG_CANDIDATES="[]"
+
+if [ "${_FLAG_MIGRATE}" = "true" ] && [ "${_CANDIDATE_COUNT}" -gt 0 ]
+then
+    debug_log "Migration mode: checking file quality sources"
+
+    _SWITCH_TEMP=$(mktemp)
+    printf '%s' "${_CANDIDATES}" | jq -c '.[]' > "${_SWITCH_TEMP}"
+
+    _switch_list="[]"
+    _log_list="[]"
+
+    while read -r _movie_json
+    do
+        _movie_id=$(printf '%s' "${_movie_json}" | jq -r '.id')
+        _movie_file_id=$(printf '%s' "${_movie_json}" | jq -r '.movieFileId')
+
+        if [ -z "${_movie_file_id}" ] || [ "${_movie_file_id}" = "null" ] || [ "${_movie_file_id}" = "0" ]
+        then
+            debug_log "  Movie ${_movie_id}: no movieFileId, skipping"
+            continue
+        fi
+
+        _file_json=$(radarr_api_get "moviefile/${_movie_file_id}")
+        if [ -z "${_file_json}" ]
+        then
+            debug_log "  Movie ${_movie_id}: failed to fetch moviefile, skipping"
+            continue
+        fi
+
+        _quality_source=$(printf '%s' "${_file_json}" | jq -r '.quality.quality.source // "unknown"')
+        _quality_name=$(printf '%s' "${_file_json}" | jq -r '.quality.quality.name // "unknown"')
+
+        case "${_quality_source}" in
+            webdl|webrip)
+                debug_log "  Movie ${_movie_id}: ${_quality_name} (${_quality_source}) -> switch"
+                _switch_list=$(printf '%s' "${_switch_list}" | jq --argjson movie "${_movie_json}" '. + [$movie]')
+                ;;
+            *)
+                debug_log "  Movie ${_movie_id}: ${_quality_name} (${_quality_source}) -> log"
+                _log_list=$(printf '%s' "${_log_list}" | jq --argjson movie "${_movie_json}" --arg source "${_quality_source}" --arg name "${_quality_name}" \
+                    '. + [$movie + {qualitySource: $source, qualityName: $name}]')
+                ;;
+        esac
+
+        sleep 0.2
+    done < "${_SWITCH_TEMP}"
+
+    rm -f "${_SWITCH_TEMP}"
+
+    _SWITCH_CANDIDATES="${_switch_list}"
+    _LOG_CANDIDATES="${_log_list}"
+    _CANDIDATE_COUNT=$(printf '%s' "${_SWITCH_CANDIDATES}" | jq 'length')
+    _LOG_COUNT=$(printf '%s' "${_LOG_CANDIDATES}" | jq 'length')
+
+    debug_log "Migration: ${_CANDIDATE_COUNT} to switch, ${_LOG_COUNT} to log"
+fi
 
 ##############################################################################
 # Phase 7: Output (table or JSON)
@@ -336,8 +413,14 @@ then
     if [ "${_FLAG_QUIET}" = "false" ]
     then
         echo
-        echo "Auto Quality Profile Switch"
-        echo "==========================="
+        if [ "${_FLAG_MIGRATE}" = "true" ]
+        then
+            echo "Auto Quality Profile Switch (Migration Mode)"
+            echo "============================================="
+        else
+            echo "Auto Quality Profile Switch"
+            echo "==========================="
+        fi
         echo
         echo "Threshold: P${P_VALUE} = ${_THRESHOLD}d (based on ${_SAMPLE_SIZE} movies with both dates)"
         echo "Source profile: ${SOURCE_PROFILE_NAME} (id: ${SOURCE_PROFILE_ID})"
@@ -345,8 +428,32 @@ then
         echo
     fi
 
-    if [ "${_CANDIDATE_COUNT}" -gt 0 ] && [ "${_FLAG_QUIET}" = "false" ]
+    if [ "${_FLAG_MIGRATE}" = "true" ] && [ "${_FLAG_QUIET}" = "false" ]
     then
+        # Migration mode: show switch candidates
+        if [ "${_CANDIDATE_COUNT}" -gt 0 ]
+        then
+            echo "Movies to switch (WebDL/WebRip):"
+            printf '%s' "${_SWITCH_CANDIDATES}" | jq -r '.[] | "\(.title) (\(.year))|\(.waiting_days)"' | \
+            while IFS='|' read -r _title _waiting; do
+                printf "  %-50s %6dd\n" "${_title}" "${_waiting%.*}"
+            done
+            echo
+        fi
+
+        # Migration mode: show log candidates
+        if [ "${_LOG_COUNT}" -gt 0 ]
+        then
+            echo "Movies needing manual review (non-WebDL):"
+            printf '%s' "${_LOG_CANDIDATES}" | jq -r '.[] | "\(.qualitySource)|\(.title) (\(.year))|\(.qualityName)"' | \
+            while IFS='|' read -r _source _title _quality; do
+                printf "  WARN: [%-8s] %-50s %s\n" "${_source}" "${_title}" "${_quality}"
+            done
+            echo
+        fi
+    elif [ "${_FLAG_MIGRATE}" = "false" ] && [ "${_CANDIDATE_COUNT}" -gt 0 ] && [ "${_FLAG_QUIET}" = "false" ]
+    then
+        # Normal mode
         printf '%-50s %8s %-20s  %s\n' "Movie" "Waiting" "Current Profile" "-> Target"
         printf '%-50s %8s %-20s  %s\n' "-----" "-------" "---------------" "--------"
 
@@ -359,7 +466,7 @@ then
 
     if [ "${_FLAG_QUIET}" = "false" ]
     then
-        if [ "${_CANDIDATE_COUNT}" -eq 0 ]
+        if [ "${_CANDIDATE_COUNT}" -eq 0 ] && { [ "${_FLAG_MIGRATE}" = "false" ] || [ "${_LOG_COUNT}" -eq 0 ]; }
         then
             echo "No candidates to switch."
             echo
@@ -368,7 +475,12 @@ then
 
         if [ "${DRY_RUN}" = "true" ]
         then
-            echo "DRY-RUN: ${_CANDIDATE_COUNT} movies would switch. Run with --apply to execute."
+            if [ "${_FLAG_MIGRATE}" = "true" ]
+            then
+                echo "DRY-RUN: ${_CANDIDATE_COUNT} movies would switch, ${_LOG_COUNT} need manual review."
+            else
+                echo "DRY-RUN: ${_CANDIDATE_COUNT} movies would switch. Run with --apply to execute."
+            fi
             echo
             exit 0
         fi
@@ -387,7 +499,13 @@ _SWITCH_TEMP=$(mktemp)
 trap 'rm -f "${_SWITCH_TEMP}"; exit 130' INT TERM
 trap 'rm -f "${_SWITCH_TEMP}"' EXIT
 
-printf '%s' "${_CANDIDATES}" | jq -r '.[].id' > "${_SWITCH_TEMP}"
+# Use _SWITCH_CANDIDATES in migration mode, _CANDIDATES otherwise
+if [ "${_FLAG_MIGRATE}" = "true" ]
+then
+    printf '%s' "${_SWITCH_CANDIDATES}" | jq -r '.[].id' > "${_SWITCH_TEMP}"
+else
+    printf '%s' "${_CANDIDATES}" | jq -r '.[].id' > "${_SWITCH_TEMP}"
+fi
 
 while read -r _movie_id
 do
@@ -475,7 +593,8 @@ trap - INT TERM EXIT
 
 _SEARCH_QUEUED=0
 
-if [ "${TRIGGER_SEARCH}" = "true" ] && [ "${_SWITCHED_COUNT}" -gt 0 ]
+# Skip search in migration mode (manual review needed)
+if [ "${TRIGGER_SEARCH}" = "true" ] && [ "${_SWITCHED_COUNT}" -gt 0 ] && [ "${_FLAG_MIGRATE}" = "false" ]
 then
     debug_log "Triggering search for ${_SWITCHED_COUNT} switched movies"
 
@@ -513,18 +632,51 @@ fi
 if [ "${_DEFER_JSON}" = "true" ]
 then
     # JSON output with real switched_count and searched_count
-    printf '%s' "${_CANDIDATES}" | jq \
-        --arg threshold "${_THRESHOLD}" \
-        --arg p_value "${P_VALUE}" \
-        --arg sample_size "${_SAMPLE_SIZE}" \
-        --arg src_name "${SOURCE_PROFILE_NAME}" \
-        --arg src_id "${SOURCE_PROFILE_ID}" \
-        --arg tgt_name "${TARGET_PROFILE_NAME}" \
-        --arg tgt_id "${TARGET_PROFILE_ID}" \
-        --arg switched_count "${_SWITCHED_COUNT}" \
-        --arg searched_count "${_SEARCH_QUEUED}" \
-        --argjson dry_run false \
-        '
+    if [ "${_FLAG_MIGRATE}" = "true" ]
+    then
+        printf '%s' "${_SWITCH_CANDIDATES}" | jq \
+            --arg threshold "${_THRESHOLD}" \
+            --arg p_value "${P_VALUE}" \
+            --arg sample_size "${_SAMPLE_SIZE}" \
+            --arg src_name "${SOURCE_PROFILE_NAME}" \
+            --arg src_id "${SOURCE_PROFILE_ID}" \
+            --arg tgt_name "${TARGET_PROFILE_NAME}" \
+            --arg tgt_id "${TARGET_PROFILE_ID}" \
+            --arg switched_count "${_SWITCHED_COUNT}" \
+            --arg log_count "${_LOG_COUNT}" \
+            --argjson dry_run false \
+            --argjson log_candidates "${_LOG_CANDIDATES}" \
+            '
+{
+    threshold_days: ($threshold | tonumber),
+    p_value: ($p_value | tonumber),
+    sample_size: ($sample_size | tonumber),
+    source_profile: {id: ($src_id | tonumber), name: $src_name},
+    target_profile: {id: ($tgt_id | tonumber), name: $tgt_name},
+    candidates: .,
+    candidate_count: length,
+    switched_count: ($switched_count | tonumber),
+    log_count: ($log_count | tonumber),
+    log_candidates: $log_candidates,
+    searched_count: 0,
+    search_triggered: false,
+    dry_run: false,
+    migrate: true
+}
+'
+    else
+        printf '%s' "${_CANDIDATES}" | jq \
+            --arg threshold "${_THRESHOLD}" \
+            --arg p_value "${P_VALUE}" \
+            --arg sample_size "${_SAMPLE_SIZE}" \
+            --arg src_name "${SOURCE_PROFILE_NAME}" \
+            --arg src_id "${SOURCE_PROFILE_ID}" \
+            --arg tgt_name "${TARGET_PROFILE_NAME}" \
+            --arg tgt_id "${TARGET_PROFILE_ID}" \
+            --arg switched_count "${_SWITCHED_COUNT}" \
+            --arg searched_count "${_SEARCH_QUEUED}" \
+            --argjson dry_run false \
+            '
 {
     threshold_days: ($threshold | tonumber),
     p_value: ($p_value | tonumber),
@@ -539,19 +691,32 @@ then
     dry_run: false
 }
 '
+    fi
     echo
 elif [ "${_FLAG_QUIET}" = "false" ]
 then
-    echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${TARGET_PROFILE_NAME}"
-    if [ "${_SEARCH_QUEUED}" -gt 0 ]
+    if [ "${_FLAG_MIGRATE}" = "true" ]
     then
-        echo "QUEUED: ${_SEARCH_QUEUED} movies sent for search"
-    elif [ "${TRIGGER_SEARCH}" = "true" ] && [ "${_SWITCHED_COUNT}" -gt 0 ]
-    then
-        echo "WARN: Search was not queued (see warnings above)"
-    elif [ "${TRIGGER_SEARCH}" = "false" ]
-    then
-        echo "Search skipped (TRIGGER_SEARCH=false)"
+        echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${TARGET_PROFILE_NAME}"
+        echo "TAGS: Added auto-switched tag to ${_SWITCHED_COUNT} movies"
+        if [ "${_LOG_COUNT}" -gt 0 ]
+        then
+            echo "WARN: ${_LOG_COUNT} movies need manual review (non-WebDL files):"
+            printf '%s' "${_LOG_CANDIDATES}" | jq -r '.[] | "  WARN: [\(.qualitySource)] \(.title) (\(.year)) — \(.qualityName)"'
+        fi
+        echo "Search skipped (migration mode)"
+    else
+        echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${TARGET_PROFILE_NAME}"
+        if [ "${_SEARCH_QUEUED}" -gt 0 ]
+        then
+            echo "QUEUED: ${_SEARCH_QUEUED} movies sent for search"
+        elif [ "${TRIGGER_SEARCH}" = "true" ] && [ "${_SWITCHED_COUNT}" -gt 0 ]
+        then
+            echo "WARN: Search was not queued (see warnings above)"
+        elif [ "${TRIGGER_SEARCH}" = "false" ]
+        then
+            echo "Search skipped (TRIGGER_SEARCH=false)"
+        fi
     fi
     echo
 fi

@@ -402,7 +402,126 @@ Or run in dry-run mode for a week first to observe:
 - Standard POSIX `sh` — runtime
 - Radarr API access with key configured
 
-## 11. Project conventions (must follow)
+## 11. Migration Mode (`--migrate`)
+
+### 11.1 Purpose
+
+One-time migration tool to fix existing movies in the library that are on Remux-only profiles but should have been switched to WebDL. Unlike the normal mode (which targets movies without files), migration mode targets movies that already have downloaded files.
+
+**Use case:** After setting up the script, run `--migrate` once to clean up the existing backlog of "dead" movies that will never get a Remux release.
+
+### 11.2 Behavior
+
+| Mode | Trigger | Effect |
+|------|---------|--------|
+| Dry-run (default) | `--migrate` | Print candidates, no API mutations |
+| Apply | `--migrate --apply` | Switch WebDL files, log non-WebDL files |
+| JSON | `--migrate --json` | Output machine-readable JSON |
+| Quiet | `--migrate --quiet` | Only print errors and counts |
+
+**Key differences from normal mode:**
+- Targets movies with `hasFile == true` (instead of `false`)
+- Checks file quality source before switching
+- WebDL/WebRip files → switch profile + add tag
+- Non-WebDL files → log to stderr for manual review
+- Never triggers search (manual review needed)
+- Run once, then use normal mode for ongoing maintenance
+
+### 11.3 Candidate matching
+
+```
+candidates = []
+for movie in all_movies:
+    if movie.digitalRelease == null:
+        skip
+    if movie.physicalRelease != null:
+        skip
+    if movie.qualityProfileId != source_id:
+        skip
+    if movie.hasFile == false:
+        skip  # Migration mode: only movies with files
+    if movie.monitored == false:
+        skip
+    
+    waiting_days = (now - movie.digitalRelease) in days
+    if waiting_days < threshold:
+        skip
+    
+    # Check file quality
+    movie_file = GET /api/v3/moviefile/{movie.movieFileId}
+    quality_source = movie_file.quality.quality.source
+    
+    if quality_source in ["webdl", "webrip"]:
+        candidates.append({
+            action: "switch",
+            movie: movie,
+            quality: quality_source
+        })
+    else:
+        candidates.append({
+            action: "log",
+            movie: movie,
+            quality: quality_source
+        })
+```
+
+### 11.4 Quality source classification
+
+| Source | Action | Reason |
+|--------|--------|--------|
+| `webdl` | Switch | Already a WebDL release, just wrong profile |
+| `webrip` | Switch | Similar to WebDL, acceptable |
+| `bluray` | Log | Physical release exists, needs manual review |
+| `remux` | Log | Already Remux, might be intentional |
+| `hdtv` | Log | Broadcast recording, needs review |
+| `dvd` | Log | DVD source, needs review |
+| Other | Log | Unknown source, needs review |
+
+### 11.5 Output format
+
+**Dry-run:**
+```
+Auto Quality Profile Switch (Migration Mode)
+=============================================
+
+Threshold: P95 = 265d (based on 1921 movies with both dates)
+Source profile: Remux-2160p (id: 5)
+Target profile: WebDL-2160p (id: 7)
+
+Movies to switch (WebDL/WebRip):
+  The Matrix Resurrections (2021) — WEBDL-2160p — 487d
+  ...
+
+Movies needing manual review (non-WebDL):
+  WARN: [bluray] Dune (2021) — Bluray-2160p — 1205d
+  WARN: [remux] Tenet (2020) — Remux-2160p — 1580d
+  ...
+
+DRY-RUN: 42 movies would switch, 5 need manual review.
+```
+
+**Apply:**
+```
+APPLY: Switched 42 movies to WebDL-2160p
+TAGS: Added auto-switched tag to 42 movies
+WARN: 5 movies need manual review (non-WebDL files):
+  WARN: [bluray] Dune (2021) — Bluray-2160p
+  WARN: [remux] Tenet (2020) — Remux-2160p
+  ...
+```
+
+### 11.6 Implementation notes
+
+- Add `--migrate` to CLI flags
+- Modify candidate matching jq to accept `hasFile` as parameter
+- After candidate matching, fetch moviefile for each candidate
+- Classify by quality source
+- For WebDL/WebRip: switch profile + add tag (same as normal mode)
+- For others: log to stderr with quality source
+- No search trigger in migration mode
+- Changelog: v0.4.0
+
+## 12. Project conventions (must follow)
 
 - Shebang: `#!/usr/bin/env sh`
 - `# shellcheck disable=SC3043` for `local`
