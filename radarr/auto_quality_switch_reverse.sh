@@ -11,6 +11,10 @@
 # * curl (tested with 8.10.1)
 # * jq (tested with 1.7.1)
 #
+# Version 0.2.0 (Released 2026-07-18)
+#   * Use SOURCE_PROFILE_NAME and TARGET_PROFILE_NAME from config
+#     instead of duplicate SWITCH_TO/FROM_PROFILE_NAME
+#
 # Version 0.1.0 (Released 2026-07-14)
 #   * Initial implementation
 
@@ -19,8 +23,8 @@
 load_config "$(dirname "$0")/connect"
 
 # Script-specific defaults
-: "${SWITCH_TO_PROFILE_NAME:=Remux-2160p}"
-: "${SWITCH_FROM_PROFILE_NAME:=WebDL-2160p}"
+: "${SOURCE_PROFILE_NAME:=Remux-2160p}"
+: "${TARGET_PROFILE_NAME:=WebDL-2160p}"
 : "${AUTO_SWITCH_TAG:=auto-switched}"
 : "${DRY_RUN:=true}"
 : "${MAX_SWITCH_PER_RUN:=0}"
@@ -47,8 +51,8 @@ done
 check_needed_executables "curl jq"
 
 debug_log "=== Auto Quality Profile Switch (Reverse) ==="
-debug_log "Switch to profile: ${SWITCH_TO_PROFILE_NAME}"
-debug_log "Switch from profile: ${SWITCH_FROM_PROFILE_NAME}"
+debug_log "Switch to profile: ${SOURCE_PROFILE_NAME}"
+debug_log "Switch from profile: ${TARGET_PROFILE_NAME}"
 
 # --apply flag overrides DRY_RUN config
 if [ "${_FLAG_APPLY}" = "true" ]
@@ -103,26 +107,26 @@ _resolve_profile_id() {
 }
 
 debug_log "Resolving switch-to profile ID"
-SWITCH_TO_PROFILE_ID=$(_resolve_profile_id "${SWITCH_TO_PROFILE_NAME}")
+SOURCE_PROFILE_ID=$(_resolve_profile_id "${SOURCE_PROFILE_NAME}")
 _resolve_rc=$?
 if [ "${_resolve_rc}" -ne 0 ]
 then
     exit 1
 fi
-debug_log "Switch-to profile: ${SWITCH_TO_PROFILE_NAME} (id: ${SWITCH_TO_PROFILE_ID})"
+debug_log "Switch-to profile: ${SOURCE_PROFILE_NAME} (id: ${SOURCE_PROFILE_ID})"
 
 debug_log "Resolving switch-from profile ID"
-SWITCH_FROM_PROFILE_ID=$(_resolve_profile_id "${SWITCH_FROM_PROFILE_NAME}")
+TARGET_PROFILE_ID=$(_resolve_profile_id "${TARGET_PROFILE_NAME}")
 _resolve_rc=$?
 if [ "${_resolve_rc}" -ne 0 ]
 then
     exit 1
 fi
-debug_log "Switch-from profile: ${SWITCH_FROM_PROFILE_NAME} (id: ${SWITCH_FROM_PROFILE_ID})"
+debug_log "Switch-from profile: ${TARGET_PROFILE_NAME} (id: ${TARGET_PROFILE_ID})"
 
-if [ "${SWITCH_TO_PROFILE_ID}" = "${SWITCH_FROM_PROFILE_ID}" ]
+if [ "${SOURCE_PROFILE_ID}" = "${TARGET_PROFILE_ID}" ]
 then
-    echo "ERROR: Switch-to and switch-from profiles are the same (id: ${SWITCH_TO_PROFILE_ID})" >&2
+    echo "ERROR: Switch-to and switch-from profiles are the same (id: ${SOURCE_PROFILE_ID})" >&2
     echo "ERROR: Nothing to switch. Exiting." >&2
     exit 1
 fi
@@ -132,46 +136,21 @@ fi
 ##############################################################################
 
 debug_log "Resolving auto-switch tag"
-_TAGS=$(radarr_api_get "tag")
-
-if [ -z "${_TAGS}" ]
-then
-    echo "ERROR: No response from tag API" >&2
-    exit 1
-fi
-
-AUTO_SWITCH_TAG_ID=$(printf '%s' "${_TAGS}" | jq -r --arg label "${AUTO_SWITCH_TAG}" \
-    '[.[] | select(.label == $label)] | .[0].id // empty')
+AUTO_SWITCH_TAG_ID=$(get_tag_id_by_label "${AUTO_SWITCH_TAG}")
 
 if [ -z "${AUTO_SWITCH_TAG_ID}" ]
 then
     debug_log "Tag '${AUTO_SWITCH_TAG}' not found, creating"
-    _tag_response=$(curl \
-        -s \
-        -X POST \
-        -H "Accept-Encoding: application/json" \
-        -H "X-Api-Key: ${RADARR_API_KEY}" \
-        -H "Content-Type: application/json" \
-        -d "{\"label\": \"${AUTO_SWITCH_TAG}\"}" \
-        "${RADARR_API_URL}/tag" \
-        -w "\n%{http_code}")
-
-    _tag_http=$(printf '%s' "${_tag_response}" | tail -1)
-    _tag_body=$(printf '%s' "${_tag_response}" | sed '$d')
-
-    case "${_tag_http}" in
-        2*)
-            AUTO_SWITCH_TAG_ID=$(printf '%s' "${_tag_body}" | jq -r '.id')
-            debug_log "Created tag '${AUTO_SWITCH_TAG}' (id: ${AUTO_SWITCH_TAG_ID})"
-            ;;
-        *)
-            echo "ERROR: Failed to create tag '${AUTO_SWITCH_TAG}' (HTTP ${_tag_http}): ${_tag_body}" >&2
-            exit 1
-            ;;
-    esac
-else
-    debug_log "Tag '${AUTO_SWITCH_TAG}' (id: ${AUTO_SWITCH_TAG_ID})"
+    AUTO_SWITCH_TAG_ID=$(create_tag "${AUTO_SWITCH_TAG}")
+    if [ -z "${AUTO_SWITCH_TAG_ID}" ] || [ "${AUTO_SWITCH_TAG_ID}" = "null" ]
+    then
+        echo "ERROR: Failed to create tag '${AUTO_SWITCH_TAG}'" >&2
+        exit 1
+    fi
+    _TAG_CACHE=""
 fi
+
+debug_log "Tag '${AUTO_SWITCH_TAG}' (id: ${AUTO_SWITCH_TAG_ID})"
 
 ##############################################################################
 # Phase 3: Candidate matching
@@ -188,7 +167,7 @@ fi
 
 _CANDIDATES=$(printf '%s' "${_ALL_MOVIES}" | jq \
     --arg tag_id "${AUTO_SWITCH_TAG_ID}" \
-    --arg from_profile_id "${SWITCH_FROM_PROFILE_ID}" \
+    --arg from_profile_id "${TARGET_PROFILE_ID}" \
     '
 [.[] | select(
     (.tags | index(($tag_id | tonumber)))
@@ -218,10 +197,10 @@ then
         _SWITCHED_COUNT=0
 
         printf '%s' "${_CANDIDATES}" | jq \
-            --arg switch_to_name "${SWITCH_TO_PROFILE_NAME}" \
-            --arg switch_to_id "${SWITCH_TO_PROFILE_ID}" \
-            --arg switch_from_name "${SWITCH_FROM_PROFILE_NAME}" \
-            --arg switch_from_id "${SWITCH_FROM_PROFILE_ID}" \
+            --arg switch_to_name "${SOURCE_PROFILE_NAME}" \
+            --arg switch_to_id "${SOURCE_PROFILE_ID}" \
+            --arg switch_from_name "${TARGET_PROFILE_NAME}" \
+            --arg switch_from_id "${TARGET_PROFILE_ID}" \
             --arg tag_label "${AUTO_SWITCH_TAG}" \
             --arg tag_id "${AUTO_SWITCH_TAG_ID}" \
             --arg switched_count "${_SWITCHED_COUNT}" \
@@ -259,8 +238,8 @@ then
         echo "Auto Quality Profile Switch (Reverse)"
         echo "====================================="
         echo
-        echo "Source profile: ${SWITCH_FROM_PROFILE_NAME} (id: ${SWITCH_FROM_PROFILE_ID})"
-        echo "Target profile: ${SWITCH_TO_PROFILE_NAME} (id: ${SWITCH_TO_PROFILE_ID})"
+        echo "Source profile: ${TARGET_PROFILE_NAME} (id: ${TARGET_PROFILE_ID})"
+        echo "Target profile: ${SOURCE_PROFILE_NAME} (id: ${SOURCE_PROFILE_ID})"
         echo "Tag: ${AUTO_SWITCH_TAG} (id: ${AUTO_SWITCH_TAG_ID})"
         echo
     fi
@@ -272,7 +251,7 @@ then
 
         printf '%s' "${_CANDIDATES}" | jq -r '.[] | "\(.title) (\(.year))|\(.physicalRelease[:10])|\(.qualityProfileId)"' | \
         while IFS='|' read -r _title _phys_release _profile_id; do
-            printf '%-50s %-12s %-20s  -> %s\n' "${_title}" "${_phys_release}" "${SWITCH_FROM_PROFILE_NAME}" "${SWITCH_TO_PROFILE_NAME}"
+            printf '%-50s %-12s %-20s  -> %s\n' "${_title}" "${_phys_release}" "${TARGET_PROFILE_NAME}" "${SOURCE_PROFILE_NAME}"
         done
         echo
     fi
@@ -317,9 +296,9 @@ do
         break
     fi
 
-    _payload=$(printf '{"movieIds": [%s], "qualityProfileId": %s}' "${_movie_id}" "${SWITCH_TO_PROFILE_ID}")
+    _payload=$(printf '{"movieIds": [%s], "qualityProfileId": %s}' "${_movie_id}" "${SOURCE_PROFILE_ID}")
 
-    debug_log "Switching movie ${_movie_id} to profile ${SWITCH_TO_PROFILE_ID}"
+    debug_log "Switching movie ${_movie_id} to profile ${SOURCE_PROFILE_ID}"
 
     _response=$(curl \
         -s \
@@ -346,31 +325,11 @@ do
             debug_log "  Switched (HTTP ${_http_code})"
 
             # Remove auto-switch tag
-            _movie_json=$(radarr_api_get "movie/${_movie_id}")
-            if [ -n "${_movie_json}" ]
+            if remove_tag_from_movie "${_movie_id}" "${AUTO_SWITCH_TAG}"
             then
-                _new_tags=$(printf '%s' "${_movie_json}" | jq -r --argjson tag "${AUTO_SWITCH_TAG_ID}" \
-                    '[.tags[] | select(. != $tag)]')
-
-                _tag_response=$(curl \
-                    -s \
-                    -X PUT \
-                    -H "Accept-Encoding: application/json" \
-                    -H "X-Api-Key: ${RADARR_API_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"tags\": ${_new_tags}}" \
-                    "${RADARR_API_URL}/movie/${_movie_id}" \
-                    -w "\n%{http_code}")
-
-                _tag_http=$(printf '%s' "${_tag_response}" | tail -1)
-                case "${_tag_http}" in
-                    2*)
-                        debug_log "  Untagged (HTTP ${_tag_http})"
-                        ;;
-                    *)
-                        echo "WARN: Failed to remove tag from movie ${_movie_id} (HTTP ${_tag_http})" >&2
-                        ;;
-                esac
+                debug_log "  Untagged '${AUTO_SWITCH_TAG}'"
+            else
+                echo "WARN: Failed to remove tag from movie ${_movie_id}" >&2
             fi
             ;;
         *)
@@ -429,10 +388,10 @@ if [ "${_DEFER_JSON}" = "true" ]
 then
     # JSON output with real switched_count and searched_count
     printf '%s' "${_CANDIDATES}" | jq \
-        --arg switch_to_name "${SWITCH_TO_PROFILE_NAME}" \
-        --arg switch_to_id "${SWITCH_TO_PROFILE_ID}" \
-        --arg switch_from_name "${SWITCH_FROM_PROFILE_NAME}" \
-        --arg switch_from_id "${SWITCH_FROM_PROFILE_ID}" \
+        --arg switch_to_name "${SOURCE_PROFILE_NAME}" \
+        --arg switch_to_id "${SOURCE_PROFILE_ID}" \
+        --arg switch_from_name "${TARGET_PROFILE_NAME}" \
+        --arg switch_from_id "${TARGET_PROFILE_ID}" \
         --arg tag_label "${AUTO_SWITCH_TAG}" \
         --arg tag_id "${AUTO_SWITCH_TAG_ID}" \
         --arg switched_count "${_SWITCHED_COUNT}" \
@@ -455,7 +414,7 @@ then
     echo
 elif [ "${_FLAG_QUIET}" = "false" ]
 then
-    echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${SWITCH_TO_PROFILE_NAME}"
+    echo "APPLY: Switched ${_SWITCHED_COUNT} movies to ${SOURCE_PROFILE_NAME}"
     echo "TAGS: Removed auto-switched tag from ${_SWITCHED_COUNT} movies"
     if [ "${_SEARCH_QUEUED}" -gt 0 ]
     then

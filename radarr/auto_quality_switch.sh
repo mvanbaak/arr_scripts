@@ -152,52 +152,6 @@ then
 fi
 
 ##############################################################################
-# Phase 2.5: Tag resolution
-##############################################################################
-
-debug_log "Resolving auto-switch tag"
-_TAGS=$(radarr_api_get "tag")
-
-if [ -z "${_TAGS}" ]
-then
-    echo "ERROR: No response from tag API" >&2
-    exit 1
-fi
-
-AUTO_SWITCH_TAG_ID=$(printf '%s' "${_TAGS}" | jq -r --arg label "${AUTO_SWITCH_TAG}" \
-    '[.[] | select(.label == $label)] | .[0].id // empty')
-
-if [ -z "${AUTO_SWITCH_TAG_ID}" ]
-then
-    debug_log "Tag '${AUTO_SWITCH_TAG}' not found, creating"
-    _tag_response=$(curl \
-        -s \
-        -X POST \
-        -H "Accept-Encoding: application/json" \
-        -H "X-Api-Key: ${RADARR_API_KEY}" \
-        -H "Content-Type: application/json" \
-        -d "{\"label\": \"${AUTO_SWITCH_TAG}\"}" \
-        "${RADARR_API_URL}/tag" \
-        -w "\n%{http_code}")
-
-    _tag_http=$(printf '%s' "${_tag_response}" | tail -1)
-    _tag_body=$(printf '%s' "${_tag_response}" | sed '$d')
-
-    case "${_tag_http}" in
-        2*)
-            AUTO_SWITCH_TAG_ID=$(printf '%s' "${_tag_body}" | jq -r '.id')
-            debug_log "Created tag '${AUTO_SWITCH_TAG}' (id: ${AUTO_SWITCH_TAG_ID})"
-            ;;
-        *)
-            echo "ERROR: Failed to create tag '${AUTO_SWITCH_TAG}' (HTTP ${_tag_http}): ${_tag_body}" >&2
-            exit 1
-            ;;
-    esac
-else
-    debug_log "Tag '${AUTO_SWITCH_TAG}' (id: ${AUTO_SWITCH_TAG_ID})"
-fi
-
-##############################################################################
 # Phase 3: Threshold computation
 ##############################################################################
 
@@ -548,7 +502,7 @@ fi
 
 while read -r _movie_id
 do
-    if [ "${MAX_SWITCH_PER_RUN}" -gt 0 ] && [ "${_SWITCHED_COUNT}" -ge "${MAX_SWITCH_PER_RUN}" ]
+    if [ "${_FLAG_MIGRATE}" = "false" ] && [ "${MAX_SWITCH_PER_RUN}" -gt 0 ] && [ "${_SWITCHED_COUNT}" -ge "${MAX_SWITCH_PER_RUN}" ]
     then
         debug_log "MAX_SWITCH_PER_RUN (${MAX_SWITCH_PER_RUN}) reached, stopping"
         break
@@ -583,36 +537,11 @@ do
             debug_log "  Switched (HTTP ${_http_code})"
 
             # Add auto-switch tag
-            _movie_json=$(radarr_api_get "movie/${_movie_id}")
-            if [ -n "${_movie_json}" ]
+            if add_tag_to_movie "${_movie_id}" "${AUTO_SWITCH_TAG}"
             then
-                _existing_tags=$(printf '%s' "${_movie_json}" | jq -r '.tags | join(",")')
-                if [ -z "${_existing_tags}" ]
-                then
-                    _new_tags="[${AUTO_SWITCH_TAG_ID}]"
-                else
-                    _new_tags=$(printf '%s' "${_existing_tags}" | jq -r --argjson tag "${AUTO_SWITCH_TAG_ID}" 'split(",") | map(tonumber) + [$tag]')
-                fi
-
-                _tag_response=$(curl \
-                    -s \
-                    -X PUT \
-                    -H "Accept-Encoding: application/json" \
-                    -H "X-Api-Key: ${RADARR_API_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"tags\": ${_new_tags}}" \
-                    "${RADARR_API_URL}/movie/${_movie_id}" \
-                    -w "\n%{http_code}")
-
-                _tag_http=$(printf '%s' "${_tag_response}" | tail -1)
-                case "${_tag_http}" in
-                    2*)
-                        debug_log "  Tagged (HTTP ${_tag_http})"
-                        ;;
-                    *)
-                        echo "WARN: Failed to tag movie ${_movie_id} (HTTP ${_tag_http})" >&2
-                        ;;
-                esac
+                debug_log "  Tagged with '${AUTO_SWITCH_TAG}'"
+            else
+                echo "WARN: Failed to tag movie ${_movie_id}" >&2
             fi
             ;;
         *)

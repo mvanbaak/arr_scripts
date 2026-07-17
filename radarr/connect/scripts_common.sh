@@ -3,8 +3,10 @@
 # shellcheck disable=SC3043
 
 # Shared library for arr_scripts connect scripts.
-# Sourced by tag_dvfelmel.sh and download_trailer.sh.
-# Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info, debug_log
+# Sourced by tag_dvfelmel.sh, download_trailer.sh, and auto quality switch scripts.
+# Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info,
+#           debug_log, get_tag_id_by_label, create_tag, movie_has_tag,
+#           add_tag_to_movie, remove_tag_from_movie
 
 load_config() {
     # Read config from file if found.
@@ -68,4 +70,172 @@ get_movie_info() {
 
 debug_log() {
     [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
+}
+
+##############################################################################
+# Tag functions (used by tag_dvfelmel.sh and auto quality switch scripts)
+##############################################################################
+
+_TAG_CACHE=""
+
+_load_tag_cache() {
+    _TAG_CACHE=$(radarr_api_get "tag")
+}
+
+get_tag_id_by_label() {
+    if [ -z "${_TAG_CACHE}" ]
+    then
+        _load_tag_cache
+    fi
+    printf '%s' "${_TAG_CACHE}" | \
+    jq -r --arg t "$1" '[.[] | select(.label == $t)] | .[0].id // empty'
+}
+
+create_tag() {
+    local _payload
+
+    _payload=$(printf '{"label": "%s"}' "$1")
+    curl \
+        -s \
+        -X POST \
+        -H "Accept-Encoding: application/json" \
+        -H "X-Api-Key: ${RADARR_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "${_payload}" \
+        "${RADARR_API_URL}/tag" | \
+    jq ".id"
+}
+
+movie_has_tag() {
+    local _movie_id _tag_id
+
+    case "$1" in
+        ''|*[!0-9]*)
+            echo "ERROR: Argument is not a movie id: $1" >&2
+            return 1
+            ;;
+        *)
+            _movie_id="$1"
+            ;;
+    esac
+
+    # tag can be a string (the label) or an integer (the id)
+    case "$2" in
+        ''|*[!0-9]*)
+            _tag_id=$(get_tag_id_by_label "$2")
+            ;;
+        *)
+            _tag_id="$2"
+            ;;
+    esac
+
+    if [ -z "${_tag_id}" ]
+    then
+        echo "ERROR: Invalid tag $2" >&2
+        return 127
+    fi
+
+    radarr_api_get "movie/${_movie_id}" | \
+    jq -e ".tags | index(${_tag_id})" >/dev/null
+}
+
+add_tag_to_movie() {
+    local _movie_id _tag_id _payload _add_tag_response
+
+    case "$1" in
+        ''|*[!0-9]*)
+            echo "ERROR: Argument is not a movie id: $1" >&2
+            return 1
+            ;;
+        *)
+            _movie_id="$1"
+            ;;
+    esac
+
+    # tag can be a string (the label) or an integer (the id)
+    case "$2" in
+        ''|*[!0-9]*)
+            _tag_id=$(get_tag_id_by_label "$2")
+            ;;
+        *)
+            _tag_id="$2"
+            ;;
+    esac
+
+    # create tag if it does not exist
+    if [ -z "${_tag_id}" ]
+    then
+        _tag_id=$(create_tag "$2")
+        # invalidate cache so subsequent label lookups find the new tag
+        _TAG_CACHE=""
+    fi
+
+    if ! movie_has_tag "${_movie_id}" "${_tag_id}"
+    then
+        _payload=$(printf '{"movieIds": [%s], "tags": [%s], "applyTags": "add"}' \
+            "${_movie_id}" "${_tag_id}")
+        if ! _add_tag_response=$(curl \
+            -s \
+            -X PUT \
+            -H "Accept-Encoding: application/json" \
+            -H "X-Api-Key: ${RADARR_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "${_payload}" \
+            "${RADARR_API_URL}/movie/editor")
+        then
+            echo "ERROR: Payload: ${_payload}" >&2
+            echo "ERROR: Response: ${_add_tag_response}" >&2
+            return 1
+        fi
+    fi
+}
+
+remove_tag_from_movie() {
+    local _movie_id _tag_id _payload _remove_tag_response
+
+    case "$1" in
+        ''|*[!0-9]*)
+            echo "ERROR: Argument is not a movie id: $1" >&2
+            return 1
+            ;;
+        *)
+            _movie_id="$1"
+            ;;
+    esac
+
+    # tag can be a string (the label) or an integer (the id)
+    case "$2" in
+        ''|*[!0-9]*)
+            _tag_id=$(get_tag_id_by_label "$2")
+            ;;
+        *)
+            _tag_id="$2"
+            ;;
+    esac
+
+    # if the tag does not exist in radarr, no need to
+    # unlink it from the movie ;P
+    if [ -z "${_tag_id}" ]
+    then
+        return 127
+    fi
+
+    if movie_has_tag "${_movie_id}" "${_tag_id}"
+    then
+        _payload=$(printf '{"movieIds": [%s], "tags": [%s], "applyTags": "remove"}' \
+            "${_movie_id}" "${_tag_id}")
+        if ! _remove_tag_response=$(curl \
+            -s \
+            -X PUT \
+            -H "Accept-Encoding: application/json" \
+            -H "X-Api-Key: ${RADARR_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "${_payload}" \
+            "${RADARR_API_URL}/movie/editor")
+        then
+            echo "ERROR: Payload: ${_payload}" >&2
+            echo "ERROR: Response: ${_remove_tag_response}" >&2
+            return 1
+        fi
+    fi
 }

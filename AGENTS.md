@@ -2,12 +2,36 @@
 
 ## Project Overview
 
-This repository contains shell scripts and configuration files for Radarr automation, primarily focused on tagging movies with Dolby Vision metadata (FEL/MEL tags).
+This repository contains shell scripts and configuration files for Radarr automation.
 
 **Scripts:**
 - `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
 - `radarr/connect/download_trailer.sh` - Downloads official trailers from TMDB/YouTube for movies in Radarr.
-- `radarr/connect/scripts_common.sh` - Shared library sourced by both scripts (config loading, executable checks, Radarr API helpers).
+- `radarr/connect/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
+- `radarr/auto_quality_switch.sh` - Switches movies from Remux-only to WebDL profiles when no physical release appears within a statistical threshold.
+- `radarr/auto_quality_switch_reverse.sh` - Switches movies back to Remux-only when physical release dates appear for previously switched movies.
+
+---
+
+## Agent Behavior
+
+### Workflow
+
+1. **Brainstorm first.** Before any code change, discuss the idea with the user. Understand the problem, explore options, call out tradeoffs. Do not skip this step.
+2. **Write a spec/proposal.** For non-trivial changes, write or update a spec document before implementing. The spec should cover: problem, design decisions, implementation plan, edge cases.
+3. **Get approval.** Present the spec and wait for user approval before writing code.
+4. **Implement.** Write the code following existing conventions.
+5. **Update docs.** Update README.md with user-facing documentation for any new scripts or features. Only document what changed — no padding.
+6. **Update AGENTS.md.** If new scripts, dependencies, or file organization changes, update this file. Skip if nothing relevant changed.
+7. **Shellcheck.** Run `shellcheck -e SC1091,SC3043` on all modified scripts before committing.
+8. **Commit and push.** Conventional Commits format. Push to the feature branch.
+9. **Update PR.** Ensure the PR description and changelogs are current.
+
+### Rules
+
+- Always ask before making changes. Propose what you plan to do, wait for confirmation.
+- Do not add comments, documentation, or configuration "for later" — only what is needed now.
+- Do not add sections to AGENTS.md or README.md that just restate what the code already says.
 
 ---
 
@@ -22,7 +46,7 @@ shellcheck radarr/connect/tag_dvfelmel.sh
 
 Run with specific rules disabled (as used in this project):
 ```bash
-shellcheck -e SC3043 radarr/connect/tag_dvfelmel.sh
+shellcheck -e SC1091,SC3043 radarr/connect/tag_dvfelmel.sh
 ```
 
 ### Scripts
@@ -60,6 +84,31 @@ Event types: `Test`, `MovieFileDelete`, `Download`, `Bulk`
 ```
 
 Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
+
+**Run the auto quality switch in dry-run mode:**
+```bash
+./radarr/auto_quality_switch.sh
+```
+
+**Run with apply flag:**
+```bash
+./radarr/auto_quality_switch.sh --apply
+```
+
+**Run migration mode:**
+```bash
+./radarr/auto_quality_switch.sh --migrate --apply
+```
+
+**Run the reverse script in dry-run mode:**
+```bash
+./radarr/auto_quality_switch_reverse.sh
+```
+
+**Run the reverse script with apply flag:**
+```bash
+./radarr/auto_quality_switch_reverse.sh --apply
+```
 
 ### Testing
 
@@ -241,6 +290,10 @@ radarr/connect/
   scripts.conf.sample  # Sample configuration
   scripts.conf         # Actual configuration (not in git)
 
+radarr/
+  auto_quality_switch.sh          # Forward script: Remux-only → WebDL
+  auto_quality_switch_reverse.sh  # Reverse script: WebDL → Remux-only
+
 docs/
   cookie-extraction.md  # Guide for exporting YouTube cookies for yt-dlp
 ```
@@ -266,6 +319,10 @@ Required executables for `download_trailer.sh` (checked at runtime):
 - mktemp
 - tr
 - yt-dlp
+
+Required executables for `auto_quality_switch.sh` and `auto_quality_switch_reverse.sh` (checked at runtime):
+- curl
+- jq
 
 ---
 
