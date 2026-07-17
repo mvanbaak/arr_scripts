@@ -142,8 +142,8 @@ RADARR_API_KEY="your_api_key"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SWITCH_TO_PROFILE_NAME` | `Remux-2160p` | Profile to switch movies back to (Remux-only). Must match forward script's `SOURCE_PROFILE_NAME`. |
-| `SWITCH_FROM_PROFILE_NAME` | `WebDL-2160p` | Profile to match candidates for reverse switch (WebDL). Must match forward script's `TARGET_PROFILE_NAME`. |
+| `SOURCE_PROFILE_NAME` | `Remux-2160p` | Profile to switch movies back to (Remux-only). Shared with forward script. |
+| `TARGET_PROFILE_NAME` | `WebDL-2160p` | Profile to match candidates for reverse switch (WebDL). Shared with forward script. |
 | `AUTO_SWITCH_TAG` | `auto-switched` | Radarr tag used to track movies switched by forward script. |
 | `DRY_RUN` | `true` | Default preview mode. Set `false` in `scripts.conf` or pass `--apply` to execute switches. |
 | `MAX_SWITCH_PER_RUN` | `0` | Max movies to switch per run. `0` = unlimited. Limits batch size to avoid hammering API. |
@@ -153,9 +153,9 @@ RADARR_API_KEY="your_api_key"
 
 ```sh
 # Auto quality switch (reverse) settings
-# These should match the forward script's values
-SWITCH_TO_PROFILE_NAME="Remux-2160p"
-SWITCH_FROM_PROFILE_NAME="WebDL-2160p"
+# These share config with the forward script
+SOURCE_PROFILE_NAME="Remux-2160p"
+TARGET_PROFILE_NAME="WebDL-2160p"
 AUTO_SWITCH_TAG="auto-switched"
 # Uncomment to allow switches without --apply flag:
 # DRY_RUN=false

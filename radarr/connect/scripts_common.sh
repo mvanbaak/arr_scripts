@@ -6,7 +6,7 @@
 # Sourced by tag_dvfelmel.sh, download_trailer.sh, and auto quality switch scripts.
 # Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info,
 #           debug_log, get_tag_id_by_label, create_tag, movie_has_tag,
-#           add_tag_to_movie, remove_tag_from_movie
+#           add_tag_to_movie, remove_tag_from_movie, _resolve_profile_id
 
 load_config() {
     # Read config from file if found.
@@ -238,4 +238,44 @@ remove_tag_from_movie() {
             return 1
         fi
     fi
+}
+
+##############################################################################
+# Profile resolution (used by auto quality switch scripts)
+##############################################################################
+
+_resolve_profile_id() {
+    local _profile_name _profiles _id
+
+    _profile_name="$1"
+
+    if [ -z "${_profile_name}" ]
+    then
+        echo "ERROR: resolve_profile_id called with empty name" >&2
+        return 1
+    fi
+
+    _profiles=$(radarr_api_get "qualityProfile")
+
+    if [ -z "${_profiles}" ]
+    then
+        echo "ERROR: No response from qualityProfile API" >&2
+        return 1
+    fi
+
+    _id=$(printf '%s' "${_profiles}" | jq -r --arg name "${_profile_name}" \
+        '[.[] | select(.name == $name)] | .[0].id // empty')
+
+    if [ -z "${_id}" ]
+    then
+        echo "ERROR: Quality profile '${_profile_name}' not found" >&2
+        echo "ERROR: Available profiles:" >&2
+        printf '%s' "${_profiles}" | jq -r '.[].name' | while read -r _line
+        do
+            echo "ERROR:   ${_line}" >&2
+        done
+        return 1
+    fi
+
+    printf '%s' "${_id}"
 }
