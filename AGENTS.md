@@ -306,9 +306,7 @@ docs/
 
 Required executables for `tag_dvfelmel.sh` (checked at runtime):
 - curl
-- dovi_tool
-- ffmpeg
-- grep
+- hdrprobe
 - jq
 - mktemp
 
