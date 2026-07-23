@@ -284,7 +284,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 radarr/connect/
-  scripts_common.sh    # Shared library (sourced by both scripts)
+  scripts_common.sh    # Shared library (sourced by all scripts)
   tag_dvfelmel.sh      # Dolby Vision FEL/MEL tagging script
   download_trailer.sh  # Trailer download script
   scripts.conf.sample  # Sample configuration
@@ -295,7 +295,9 @@ radarr/
   auto_quality_switch_reverse.sh  # Reverse script: WebDL → Remux-only
 
 docs/
-  cookie-extraction.md  # Guide for exporting YouTube cookies for yt-dlp
+  quality-switch-spec.md          # Forward script specification
+  quality-switch-reverse-spec.md  # Reverse script specification
+  cookie-extraction.md            # Guide for exporting YouTube cookies for yt-dlp
 ```
 
 ---
@@ -304,9 +306,7 @@ docs/
 
 Required executables for `tag_dvfelmel.sh` (checked at runtime):
 - curl
-- dovi_tool
-- ffmpeg
-- grep
+- hdrprobe
 - jq
 - mktemp
 

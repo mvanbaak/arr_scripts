@@ -10,14 +10,17 @@
 #
 # Requirements:
 # * sh (tested with sh from FreeBSD base FreeBSD 14.1)
-# * mktemp (tested with mktemp from FreeBSD base, FreeBSD 14.1)
 # * curl (tested with 8.10.1)
-# * dovi_tool (tested with 2.1.2
-# * ffmpeg (tested with 6.1.2
-# * grep (tested with BSD grep 2.6.0-FreeBSD)
+# * hdrprobe (tested with 0.7.0)
 # * jq (tested with 1.7.1)
+# * mktemp (tested with mktemp from FreeBSD base, FreeBSD 14.1)
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
+#
+# Version 0.4.0 (Released 2026-07-23)
+#   * Replace ffmpeg+dovi_tool+grep chain with hdrprobe
+#   * Single binary, no temp files, JSON output
+#   * Correctly handles multi-track files via el_type iteration
 #
 # Version 0.3.0 (Released 2026-06-30)
 #   * DRY_RUN and DEBUG config variables with -n/-d CLI flags
@@ -71,9 +74,8 @@ EVENT_TYPE="${radarr_eventtype:-"Test"}"
 MOVIE_ID="${radarr_movie_id:-0}"
 MOVIE_FILE="${radarr_moviefile_path:-""}"
 
-extract_moviefile_rpu_summary() {
-    local _rpu_summary _rpu_temp_file
-
+probe_dv_el_type() {
+    local _hdrprobe_output _el_type
 
     if [ ! -f "$1" ]
     then
@@ -81,103 +83,81 @@ extract_moviefile_rpu_summary() {
         return 127
     fi
 
-    _rpu_temp_file=$(mktemp)
-    # shellcheck disable=SC2064
-    trap 'rm -f "${_rpu_temp_file}"' EXIT INT TERM
-    ffmpeg \
-        -loglevel error \
-        -t 10 \
-        -i "$1" \
-        -c:v copy \
-        -bsf hevc_mp4toannexb \
-        -f hevc \
-        - < /dev/null 2>/dev/null | \
-    dovi_tool \
-        extract-rpu \
-        --input - \
-        --rpu-out "${_rpu_temp_file}" \
-        2>/dev/null
+    _hdrprobe_output=$(hdrprobe --json --sections dv "$1" 2>/dev/null)
 
-    # ffmpeg and dovi_tool run in a pipeline; without pipefail we cannot
-    # trust the pipeline's exit status, so verify the output file instead.
-    if [ ! -s "${_rpu_temp_file}" ]
+    if [ -z "${_hdrprobe_output}" ]
     then
-        _rpu_summary=""
-    fi
-
-    if [ -s "${_rpu_temp_file}" ] && ! _rpu_summary=$(dovi_tool \
-        info \
-        --input "${_rpu_temp_file}" \
-        --summary \
-        2>/dev/null)
-    then
-        _rpu_summary=""
-    fi
-
-    # remove temp file
-    if [ -f "${_rpu_temp_file}" ]
-    then
-        rm "${_rpu_temp_file}"
-    fi
-
-    if [ -z "${_rpu_summary}" ]
-    then
-        echo "ERROR: No RPU data extracted from movie file '$1'" >&2
-        trap - EXIT INT TERM
+        echo "ERROR: hdrprobe failed for movie file '$1'" >&2
         return 1
     fi
 
-    trap - EXIT INT TERM
-    echo "${_rpu_summary}"
+    # Resolve highest-priority el_type across all video tracks.
+    # FEL wins over MEL. Returns "FEL", "MEL", or empty.
+    _el_type=$(printf '%s' "${_hdrprobe_output}" | \
+        jq -r '[
+            .video_tracks[] | .dolby_vision.el_type // empty
+        ] | if any(. == "FEL") then "FEL"
+            elif any(. == "MEL") then "MEL"
+            else empty
+            end')
+
+    if [ -z "${_el_type}" ]
+    then
+        return 1
+    fi
+
+    printf '%s' "${_el_type}"
 }
 
 tag_movie() {
-    local _movie_id _movie_file _rpu_summary
+    local _movie_id _movie_file _el_type _probe_rc
 
     _movie_id="$1"
     _movie_file="$2"
 
-    if ! _rpu_summary=$(extract_moviefile_rpu_summary "${_movie_file}")
+    _el_type=$(probe_dv_el_type "${_movie_file}")
+    _probe_rc=$?
+
+    if [ "${_probe_rc}" -ne 0 ] && [ "${_probe_rc}" -ne 1 ]
     then
-        echo "ERROR: Something went wrong trying to extract the needed information from the movie file" >&2
-        # We can assume that the file has no RPU data, so no MEL/FEL, so delete the tag if its there
+        echo "ERROR: Something went wrong trying to probe the movie file" >&2
         remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
         remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
         return 1
     fi
 
-    if echo "${_rpu_summary}" | grep -q "Profile: 7 (FEL)"
-    then
-        debug_log "FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-        echo "${_rpu_summary}"
-        if [ "${DRY_RUN}" = "true" ]
-        then
-            echo "DRY-RUN: Would add FEL tag, remove MEL tag for movie ${_movie_id}" >&2
-        else
-            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-            add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-        fi
-    elif echo "${_rpu_summary}" | grep -q "Profile: 7 (MEL)"
-    then
-        debug_log "MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-        echo "${_rpu_summary}"
-        if [ "${DRY_RUN}" = "true" ]
-        then
-            echo "DRY-RUN: Would add MEL tag, remove FEL tag for movie ${_movie_id}" >&2
-        else
-            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-            add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-        fi
-    else
-        debug_log "No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-        if [ "${DRY_RUN}" = "true" ]
-        then
-            echo "DRY-RUN: Would remove FEL and MEL tags for movie ${_movie_id}" >&2
-        else
-            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-        fi
-    fi
+    case "${_el_type}" in
+        FEL)
+            debug_log "FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+            if [ "${DRY_RUN}" = "true" ]
+            then
+                echo "DRY-RUN: Would add FEL tag, remove MEL tag for movie ${_movie_id}" >&2
+            else
+                remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+                add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            fi
+            ;;
+        MEL)
+            debug_log "MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+            if [ "${DRY_RUN}" = "true" ]
+            then
+                echo "DRY-RUN: Would add MEL tag, remove FEL tag for movie ${_movie_id}" >&2
+            else
+                remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+                add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+            fi
+            ;;
+        *)
+            debug_log "No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
+            if [ "${DRY_RUN}" = "true" ]
+            then
+                echo "DRY-RUN: Would remove FEL and MEL tags for movie ${_movie_id}" >&2
+            else
+                remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+                remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+            fi
+            ;;
+    esac
 }
 
 tag_all_movies() {
@@ -198,7 +178,7 @@ EOF
 }
 
 # main script flow
-check_needed_executables "curl dovi_tool ffmpeg grep jq mktemp"
+check_needed_executables "curl hdrprobe jq mktemp"
 
 # Parse optional flags before positional args
 while [ $# -gt 0 ]; do
