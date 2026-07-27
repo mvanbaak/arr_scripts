@@ -22,6 +22,7 @@ load_config "$(dirname "$0")/connect"
 
 _COUNTRY="US"
 _LANGUAGE=""
+_CERTIFICATION=""
 _RELEASE_TYPE=5
 _NOTE=""
 _DRY_RUN=false
@@ -42,6 +43,13 @@ while [ $# -gt 0 ]; do
             case "$2" in
                 '') echo "ERROR: --language requires a code" >&2; exit 1 ;;
                 *) _LANGUAGE="$2"; shift 2 ;;
+            esac
+            ;;
+        --certification)
+            case "$2" in
+                '') echo "ERROR: --certification requires a value" >&2; exit 1 ;;
+                G|PG|PG-13|R|NC-17|NR) _CERTIFICATION="$2"; shift 2 ;;
+                *) echo "ERROR: --certification must be one of: G, PG, PG-13, R, NC-17, NR" >&2; exit 1 ;;
             esac
             ;;
         --type)
@@ -78,6 +86,7 @@ while [ $# -gt 0 ]; do
             echo "  --dry-run           Show what would be submitted, don't POST"
             echo "  --country <code>    ISO 3166-1 country code (default: US)"
             echo "  --language <code>   ISO 639-1 language code (default: empty)"
+            echo "  --certification <c> US certification: G, PG, PG-13, R, NC-17, NR (default: empty)"
             echo "  --type <N>          Release type 1-7 (default: 5)"
             echo "  --note <text>       Note field (default: empty)"
             echo "  --cookies <file>    Cookie file (default: ~/.tmdb_cookies.txt)"
@@ -116,10 +125,11 @@ _push_release_date() {
     _payload=$(jq -n \
         --arg country "${_COUNTRY}" \
         --arg language "${_LANGUAGE}" \
+        --arg certification "${_CERTIFICATION}" \
         --arg date "${_date}" \
         --arg note "${_NOTE}" \
         --argjson type "${_RELEASE_TYPE}" \
-        '{iso_3166_1: $country, iso_639_1: $language, release_date: $date, certification: "", type: $type, note: $note}')
+        '{iso_3166_1: $country, iso_639_1: $language, release_date: $date, certification: $certification, type: $type, note: $note}')
 
     debug_log "Payload: ${_payload}"
 
@@ -289,6 +299,7 @@ echo "Flags:" >&2
 echo "  --dry-run           Show what would be submitted" >&2
 echo "  --country <code>    ISO 3166-1 country (default: US)" >&2
 echo "  --language <code>   ISO 639-1 language (default: empty)" >&2
+echo "  --certification <c> US certification: G, PG, PG-13, R, NC-17, NR (default: empty)" >&2
 echo "  --type <N>          Release type 1-7 (default: 5)" >&2
 echo "  --note <text>       Note field (default: empty)" >&2
 echo "  --cookies <file>    Cookie file (default: ~/.tmdb_cookies.txt)" >&2
