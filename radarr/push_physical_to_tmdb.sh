@@ -232,15 +232,21 @@ if [ ! -t 0 ]; then
 
     cat > "${_TEMP}"
 
-    _TOTAL=$(jq 'length' "${_TEMP}")
+    # Handle both flat array and wrapped {results: [...]} format
+    if jq -e '.results' "${_TEMP}" >/dev/null 2>&1; then
+        _TOTAL=$(jq '.results | length' "${_TEMP}")
+        _MOVIES_TEMP=$(mktemp)
+        jq -c '.results[]' "${_TEMP}" > "${_MOVIES_TEMP}"
+    else
+        _TOTAL=$(jq 'length' "${_TEMP}")
+        _MOVIES_TEMP=$(mktemp)
+        jq -c '.[]' "${_TEMP}" > "${_MOVIES_TEMP}"
+    fi
     debug_log "Processing ${_TOTAL} movies"
 
     _SUCCESS=0
     _FAILED=0
     _COUNTER=0
-
-    _MOVIES_TEMP=$(mktemp)
-    jq -c '.[]' "${_TEMP}" > "${_MOVIES_TEMP}"
 
     while read -r _movie; do
         _COUNTER=$((_COUNTER + 1))
