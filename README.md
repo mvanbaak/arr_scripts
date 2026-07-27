@@ -268,6 +268,12 @@ Accepts single movies via arguments or batch processing via pipe from
 - `curl`, `jq`, `grep`, `sed` (POSIX tools)
 - Cookie file from `tmdb_login.sh` (default: `~/.tmdb_cookies.txt`)
 
+Set `TMDB_COOKIE_FILE` in `scripts.conf` to use a custom path:
+
+```sh
+TMDB_COOKIE_FILE="/path/to/cookies.txt"
+```
+
 #### Flags
 
 | Flag | Effect |
@@ -278,6 +284,7 @@ Accepts single movies via arguments or batch processing via pipe from
 | `--type <N>` | Release type 1-7 (default: 5 = Physical) |
 | `--note <text>` | Note field (default: "Physical release") |
 | `--cookies <file>` | Cookie file path (default: `~/.tmdb_cookies.txt`) |
+| `--rate-limit <s>` | Seconds between requests in pipe mode (default: 1) |
 | `-d`, `--debug` | Verbose debug logging to stderr |
 
 #### Scheduling
