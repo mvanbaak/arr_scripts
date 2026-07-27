@@ -21,9 +21,9 @@ load_config "$(dirname "$0")/connect"
 : "${TMDB_COOKIE_FILE:=${HOME}/.tmdb_cookies.txt}"
 
 _COUNTRY="US"
-_LANGUAGE="en"
+_LANGUAGE=""
 _RELEASE_TYPE=5
-_NOTE="Physical release"
+_NOTE=""
 _DRY_RUN=false
 _COOKIE_FILE="${TMDB_COOKIE_FILE}"
 _RATE_LIMIT=1
@@ -77,9 +77,9 @@ while [ $# -gt 0 ]; do
             echo "Options:"
             echo "  --dry-run           Show what would be submitted, don't POST"
             echo "  --country <code>    ISO 3166-1 country code (default: US)"
-            echo "  --language <code>   ISO 639-1 language code (default: en)"
+            echo "  --language <code>   ISO 639-1 language code (default: empty)"
             echo "  --type <N>          Release type 1-7 (default: 5)"
-            echo "  --note <text>       Note field (default: 'Physical release')"
+            echo "  --note <text>       Note field (default: empty)"
             echo "  --cookies <file>    Cookie file (default: ~/.tmdb_cookies.txt)"
             echo "  --rate-limit <s>    Seconds between requests in pipe mode (default: 1)"
             echo "  --debug             Verbose logging"
@@ -288,9 +288,9 @@ echo "" >&2
 echo "Flags:" >&2
 echo "  --dry-run           Show what would be submitted" >&2
 echo "  --country <code>    ISO 3166-1 country (default: US)" >&2
-echo "  --language <code>   ISO 639-1 language (default: en)" >&2
+echo "  --language <code>   ISO 639-1 language (default: empty)" >&2
 echo "  --type <N>          Release type 1-7 (default: 5)" >&2
-echo "  --note <text>       Note field (default: 'Physical release')" >&2
+echo "  --note <text>       Note field (default: empty)" >&2
 echo "  --cookies <file>    Cookie file (default: ~/.tmdb_cookies.txt)" >&2
 echo "  --debug             Verbose logging" >&2
 exit 1
