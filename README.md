@@ -156,6 +156,53 @@ See the sample file for all available settings with documentation.
 
 ---
 
+### fetch_physical_dates.sh
+
+Searches Blu-ray.com for physical release dates missing from Radarr. Useful
+when TMDB hasn't listed a release date yet (e.g. Supergirl 2026 had a Blu-ray
+planned for Sep 08 2026 before TMDB had it).
+
+Outputs results as table, JSON, or CSV for manual TMDB submission.
+
+#### Quick start
+
+```sh
+# Preview — check 3 movies, show debug output
+./radarr/fetch_physical_dates.sh --limit 3 --debug
+
+# Check all movies without physical release dates
+./radarr/fetch_physical_dates.sh
+
+# Export to JSON file
+./radarr/fetch_physical_dates.sh --export dates.json
+
+# Export to CSV
+./radarr/fetch_physical_dates.sh --export dates.csv --csv
+```
+
+#### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--limit N` | Process max N movies per run (batch size) |
+| `--export <file>` | Write results to file (JSON or CSV) |
+| `--csv` | Export as CSV (default: JSON) |
+| `-j`, `--json` | Output machine-readable JSON to stdout |
+| `-q`, `--quiet` | Suppress table output |
+| `-d`, `--debug` | Verbose debug logging to stderr |
+| `--country <code>` | Override country filter (default: US) |
+
+#### Scheduling
+
+Run periodically to catch new releases:
+
+```cron
+# Weekly, check 50 movies at a time
+0 8 * * 1 /path/to/radarr/fetch_physical_dates.sh --limit 50 --export /var/log/physical-dates.json >> /var/log/fetch-physical-dates.log 2>&1
+```
+
+---
+
 ## Contributing
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/) and the conventions documented in [AGENTS.md](AGENTS.md).
