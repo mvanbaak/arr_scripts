@@ -203,6 +203,94 @@ Run periodically to catch new releases:
 
 ---
 
+### tmdb_login.sh
+
+Playwright-based TMDB login script that exports session cookies for
+curl-based automation. Solves AWS WAF JavaScript challenge that blocks
+automated requests.
+
+Run once on a machine with a display (or Xvfb). The exported cookie
+file works with both `push_physical_to_tmdb.sh` and `yt-dlp`.
+
+#### Quick start
+
+```sh
+# Login and export cookies
+./radarr/tmdb_login.sh
+
+# Export to custom location
+./radarr/tmdb_login.sh --cookies /path/to/cookies.txt
+```
+
+#### Prerequisites
+
+- Node.js with Playwright package installed
+- Chromium browser (installed by Playwright)
+- Display server or Xvfb for headed mode
+
+```sh
+npm install playwright
+npx playwright install chromium
+```
+
+#### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--cookies <file>` | Output cookie file path (default: `~/.tmdb_cookies.txt`) |
+| `-d`, `--debug` | Verbose debug logging to stderr |
+
+---
+
+### push_physical_to_tmdb.sh
+
+Pushes physical release dates to TMDB via their website's Kendo grid
+REST API. Uses session cookies from `tmdb_login.sh`.
+
+Accepts single movies via arguments or batch processing via pipe from
+`fetch_physical_dates.sh`.
+
+#### Quick start
+
+```sh
+# Single movie
+./radarr/push_physical_to_tmdb.sh 123456 2026-09-08 "Movie Title"
+
+# Pipeline from fetch_physical_dates.sh
+./radarr/fetch_physical_dates.sh --json --quiet | ./radarr/push_physical_to_tmdb.sh
+
+# Dry-run mode
+./radarr/push_physical_to_tmdb.sh --dry-run 123456 2026-09-08 "Movie Title"
+```
+
+#### Prerequisites
+
+- `curl`, `jq`, `grep`, `sed` (POSIX tools)
+- Cookie file from `tmdb_login.sh` (default: `~/.tmdb_cookies.txt`)
+
+#### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--dry-run` | Show what would be submitted, don't POST |
+| `--country <code>` | ISO 3166-1 country code (default: US) |
+| `--language <code>` | ISO 639-1 language code (default: en) |
+| `--type <N>` | Release type 1-7 (default: 5 = Physical) |
+| `--note <text>` | Note field (default: "Physical release") |
+| `--cookies <file>` | Cookie file path (default: `~/.tmdb_cookies.txt`) |
+| `-d`, `--debug` | Verbose debug logging to stderr |
+
+#### Scheduling
+
+Run after `fetch_physical_dates.sh` to push found dates:
+
+```cron
+# Weekly, push dates to TMDB
+0 9 * * 1 /path/to/radarr/fetch_physical_dates.sh --json --quiet | /path/to/radarr/push_physical_to_tmdb.sh >> /var/log/push-physical.log 2>&1
+```
+
+---
+
 ## Contributing
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/) and the conventions documented in [AGENTS.md](AGENTS.md).
