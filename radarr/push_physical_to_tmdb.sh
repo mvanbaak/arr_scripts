@@ -68,6 +68,24 @@ while [ $# -gt 0 ]; do
                 *) _RATE_LIMIT="$2"; shift 2 ;;
             esac
             ;;
+        --help|-h)
+            echo "Usage: $0 <tmdb_id> <date> [title]"
+            echo "       $0 (reads JSON from stdin)"
+            echo ""
+            echo "Push physical release dates to TMDB via their website's Kendo grid API."
+            echo ""
+            echo "Options:"
+            echo "  --dry-run           Show what would be submitted, don't POST"
+            echo "  --country <code>    ISO 3166-1 country code (default: US)"
+            echo "  --language <code>   ISO 639-1 language code (default: en)"
+            echo "  --type <N>          Release type 1-7 (default: 5)"
+            echo "  --note <text>       Note field (default: 'Physical release')"
+            echo "  --cookies <file>    Cookie file (default: ~/.tmdb_cookies.txt)"
+            echo "  --rate-limit <s>    Seconds between requests in pipe mode (default: 1)"
+            echo "  --debug             Verbose logging"
+            echo "  -h, --help          Show this help"
+            exit 0
+            ;;
         -*) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
         *) break ;;
     esac

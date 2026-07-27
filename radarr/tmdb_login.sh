@@ -28,6 +28,18 @@ while [ $# -gt 0 ]; do
             esac
             ;;
         --debug) DEBUG=true; shift ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Playwright-based TMDB login. Exports session cookies to Netscape format."
+            echo "Run once on machine with display (or Xvfb)."
+            echo ""
+            echo "Options:"
+            echo "  --cookies <file>  Output cookie file (default: ~/.tmdb_cookies.txt)"
+            echo "  --debug           Verbose logging"
+            echo "  -h, --help        Show this help"
+            exit 0
+            ;;
         *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
     esac
 done

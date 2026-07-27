@@ -57,6 +57,22 @@ while [ $# -gt 0 ]; do
             esac
             ;;
         --debug) DEBUG=true; shift ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Search Blu-ray.com for physical release dates missing from Radarr."
+            echo ""
+            echo "Options:"
+            echo "  --limit N          Process max N movies per run"
+            echo "  --export <file>    Write results to file (JSON or CSV)"
+            echo "  --csv              Export as CSV (default: JSON)"
+            echo "  --json             JSON output to stdout"
+            echo "  --quiet            Suppress table output"
+            echo "  --country <code>   Country filter (default: US)"
+            echo "  --debug            Verbose logging"
+            echo "  -h, --help         Show this help"
+            exit 0
+            ;;
         -*) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
         *) break ;;
     esac
