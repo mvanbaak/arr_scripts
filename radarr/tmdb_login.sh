@@ -14,9 +14,10 @@ load_config "$(dirname "$0")/connect"
 
 : "${TMDB_USERNAME:=}"
 : "${TMDB_PASSWORD:=}"
+: "${TMDB_COOKIE_FILE:=${HOME}/.tmdb_cookies.txt}"
 : "${DEBUG:=false}"
 
-_COOKIE_FILE="${HOME}/.tmdb_cookies.txt"
+_COOKIE_FILE="${TMDB_COOKIE_FILE}"
 
 while [ $# -gt 0 ]; do
     case "$1" in

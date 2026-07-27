@@ -18,13 +18,14 @@
 load_config "$(dirname "$0")/connect"
 
 : "${DEBUG:=false}"
+: "${TMDB_COOKIE_FILE:=${HOME}/.tmdb_cookies.txt}"
 
 _COUNTRY="US"
 _LANGUAGE="en"
 _RELEASE_TYPE=5
 _NOTE="Physical release"
 _DRY_RUN=false
-_COOKIE_FILE="${HOME}/.tmdb_cookies.txt"
+_COOKIE_FILE="${TMDB_COOKIE_FILE}"
 _RATE_LIMIT=1
 
 while [ $# -gt 0 ]; do
