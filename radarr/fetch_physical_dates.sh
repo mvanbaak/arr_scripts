@@ -223,6 +223,8 @@ do
 
         debug_log "  Found: ${_reldate} (${_bluray_title})"
 
+        _tmdb_url="https://www.themoviedb.org/movie/${_tmdb_id}"
+
         _entry=$(jq -n \
             --argjson radarr_id "${_radarr_id}" \
             --arg title "${_title}" \
@@ -231,7 +233,8 @@ do
             --arg physical_date "${_reldate}" \
             --arg bluray_title "${_bluray_title}" \
             --arg bluray_url "${_bluray_url}" \
-            '{radarr_id: $radarr_id, title: $title, year: $year, tmdb_id: $tmdb_id, physical_date: $physical_date, bluray_title: $bluray_title, bluray_url: $bluray_url}')
+            --arg tmdb_url "${_tmdb_url}" \
+            '{radarr_id: $radarr_id, title: $title, year: $year, tmdb_id: $tmdb_id, physical_date: $physical_date, bluray_title: $bluray_title, bluray_url: $bluray_url, tmdb_url: $tmdb_url}')
 
         _RESULTS=$(printf '%s' "${_RESULTS}" | jq --argjson entry "${_entry}" '. + [$entry]')
         _FOUND_COUNT=$((_FOUND_COUNT + 1))
@@ -269,12 +272,12 @@ then
 
     if [ "${_FOUND_COUNT}" -gt 0 ]
     then
-        printf '%-45s %-6s %-20s  %s\n' "Movie" "Year" "Blu-ray.com Date" "TMDB ID"
-        printf '%-45s %-6s %-20s  %s\n' "-----" "----" "----------------" "-------"
+        printf '%-45s %-6s %-15s  %-10s  %s\n' "Movie" "Year" "Blu-ray.com Date" "TMDB ID" "TMDB URL"
+        printf '%-45s %-6s %-15s  %-10s  %s\n' "-----" "----" "----------------" "-------" "--------"
 
-        printf '%s' "${_RESULTS}" | jq -r '.[] | "\(.title)|\(.year)|\(.physical_date)|\(.tmdb_id)"' | \
-        while IFS='|' read -r _title _year _date _tmdb_id; do
-            printf '%-45s %-6s %-20s  %s\n' "${_title}" "${_year}" "${_date}" "${_tmdb_id}"
+        printf '%s' "${_RESULTS}" | jq -r '.[] | "\(.title)|\(.year)|\(.physical_date)|\(.tmdb_id)|\(.tmdb_url)"' | \
+        while IFS='|' read -r _title _year _date _tmdb_id _tmdb_url; do
+            printf '%-45s %-6s %-15s  %-10s  %s\n' "${_title}" "${_year}" "${_date}" "${_tmdb_id}" "${_tmdb_url}"
         done
         echo
     fi
@@ -284,8 +287,8 @@ if [ -n "${_EXPORT_FILE}" ]
 then
     if [ "${_FLAG_CSV}" = "true" ]
     then
-        echo "radarr_id,title,year,tmdb_id,physical_date,bluray_title,bluray_url" > "${_EXPORT_FILE}"
-        printf '%s' "${_RESULTS}" | jq -r '.[] | [.radarr_id, .title, .year, .tmdb_id, .physical_date, .bluray_title, .bluray_url] | @csv' >> "${_EXPORT_FILE}"
+        echo "radarr_id,title,year,tmdb_id,physical_date,bluray_title,bluray_url,tmdb_url" > "${_EXPORT_FILE}"
+        printf '%s' "${_RESULTS}" | jq -r '.[] | [.radarr_id, .title, .year, .tmdb_id, .physical_date, .bluray_title, .bluray_url, .tmdb_url] | @csv' >> "${_EXPORT_FILE}"
         debug_log "Exported ${_FOUND_COUNT} results to ${_EXPORT_FILE} (CSV)"
     else
         printf '%s' "${_RESULTS}" | jq \
