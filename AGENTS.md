@@ -346,11 +346,7 @@ radarr/
   push_physical_to_tmdb.sh        # Push release dates to TMDB via curl
 
 docs/
-  quality-switch-spec.md          # Forward script specification
-  quality-switch-reverse-spec.md  # Reverse script specification
   cookie-extraction.md            # Guide for exporting YouTube cookies for yt-dlp
-  superpowers/specs/              # Design specs for new features
-  superpowers/plans/              # Implementation plans
 ```
 
 ---
