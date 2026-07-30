@@ -194,6 +194,7 @@ _convert_date() {
     _months="Jan:01 Feb:02 Mar:03 Apr:04 May:05 Jun:06 Jul:07 Aug:08 Sep:09 Oct:10 Nov:11 Dec:12"
     _month=$(printf '%s' "${_input}" | awk '{print $1}')
     _day=$(printf '%s' "${_input}" | awk '{print $2}' | tr -d ',')
+    _day=${_day#0}
     _year=$(printf '%s' "${_input}" | awk '{print $3}')
 
     for _m in ${_months}; do
