@@ -10,6 +10,7 @@ This repository contains shell scripts and configuration files for Radarr automa
 - `radarr/connect/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
 - `radarr/auto_quality_switch.sh` - Switches movies from Remux-only to WebDL profiles when no physical release appears within a statistical threshold.
 - `radarr/auto_quality_switch_reverse.sh` - Switches movies back to Remux-only when physical release dates appear for previously switched movies.
+- `radarr/fix_quality_profiles.sh` - Switches movies with a physical release date from a wrong quality profile (default `[SQP] SQP-3 (Audio)`) to the correct Remux-only profile (default `SQP-3-RemuxOnly`).
 - `radarr/fetch_physical_dates.sh` - Searches Blu-ray.com for physical release dates missing from Radarr, logs results for TMDB submission.
 - `radarr/tmdb_login.sh` - Playwright-based TMDB login script, exports session cookies for curl-based automation.
 - `radarr/push_physical_to_tmdb.sh` - Pushes physical release dates to TMDB via their website's Kendo grid API.
@@ -21,7 +22,7 @@ This repository contains shell scripts and configuration files for Radarr automa
 ### Workflow
 
 1. **Brainstorm first.** Before any code change, discuss the idea with the user. Understand the problem, explore options, call out tradeoffs. Do not skip this step.
-2. **Write a spec/proposal.** For non-trivial changes, write or update a spec document before implementing. The spec should cover: problem, design decisions, implementation plan, edge cases.
+2. **Write a spec/proposal.** For non-trivial changes, write a spec document before implementing. The spec should cover: problem, design decisions, implementation plan, edge cases. The spec exists for human sign-off — keep it during implementation, but remove it before the PR stage. This repository does not hold spec docs: code is simple and everything has a clear purpose.
 3. **Get approval.** Present the spec and wait for user approval before writing code.
 4. **Implement.** Write the code following existing conventions.
 5. **Update docs.** Update README.md with user-facing documentation for any new scripts or features. Only document what changed — no padding.
@@ -111,6 +112,16 @@ Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
 **Run the reverse script with apply flag:**
 ```bash
 ./radarr/auto_quality_switch_reverse.sh --apply
+```
+
+**Run the quality profile fix in dry-run mode:**
+```bash
+./radarr/fix_quality_profiles.sh
+```
+
+**Run the quality profile fix with apply flag:**
+```bash
+./radarr/fix_quality_profiles.sh --apply
 ```
 
 **Run the physical release date lookup:**
@@ -341,6 +352,7 @@ radarr/connect/
 radarr/
   auto_quality_switch.sh          # Forward script: Remux-only → WebDL
   auto_quality_switch_reverse.sh  # Reverse script: WebDL → Remux-only
+  fix_quality_profiles.sh         # Wrong profile fix: SQP-3 (Audio) → SQP-3-RemuxOnly
   fetch_physical_dates.sh         # Blu-ray.com physical release date lookup
   tmdb_login.sh                   # Playwright-based TMDB cookie export
   push_physical_to_tmdb.sh        # Push release dates to TMDB via curl
@@ -370,6 +382,10 @@ Required executables for `download_trailer.sh` (checked at runtime):
 - yt-dlp
 
 Required executables for `auto_quality_switch.sh` and `auto_quality_switch_reverse.sh` (checked at runtime):
+- curl
+- jq
+
+Required executables for `fix_quality_profiles.sh` (checked at runtime):
 - curl
 - jq
 
