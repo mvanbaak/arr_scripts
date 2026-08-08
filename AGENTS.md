@@ -22,7 +22,7 @@ This repository contains shell scripts and configuration files for Radarr automa
 ### Workflow
 
 1. **Brainstorm first.** Before any code change, discuss the idea with the user. Understand the problem, explore options, call out tradeoffs. Do not skip this step.
-2. **Write a spec/proposal.** For non-trivial changes, write or update a spec document before implementing. The spec should cover: problem, design decisions, implementation plan, edge cases.
+2. **Write a spec/proposal.** For non-trivial changes, write a spec document before implementing. The spec should cover: problem, design decisions, implementation plan, edge cases. The spec exists for human sign-off — keep it during implementation, but remove it before the PR stage. This repository does not hold spec docs: code is simple and everything has a clear purpose.
 3. **Get approval.** Present the spec and wait for user approval before writing code.
 4. **Implement.** Write the code following existing conventions.
 5. **Update docs.** Update README.md with user-facing documentation for any new scripts or features. Only document what changed — no padding.
