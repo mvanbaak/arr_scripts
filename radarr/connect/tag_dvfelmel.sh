@@ -185,6 +185,19 @@ while [ $# -gt 0 ]; do
     case "$1" in
         -n) DRY_RUN=true; shift ;;
         -d) DEBUG=true; shift ;;
+        -h|--help)
+            echo "Usage: $0 [-n] [-d] [event_type] [movie_id] [movie_file_path]"
+            echo ""
+            echo "Tag movies with 'fel' or 'mel' based on Dolby Vision Enhancement Layer."
+            echo ""
+            echo "Options:"
+            echo "  -n    Dry-run mode"
+            echo "  -d    Debug logging"
+            echo "  -h    Show this help"
+            echo ""
+            echo "Event types: Test, MovieFileDelete, Download, Bulk"
+            exit 0
+            ;;
         *) break ;;
     esac
 done

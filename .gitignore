@@ -1,2 +1,4 @@
 # Configuration file, can hold secrets
 scripts.conf
+# node
+node_modules
