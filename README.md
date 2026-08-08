@@ -143,6 +143,54 @@ available on the reverse script.
 
 ---
 
+### fix_quality_profiles.sh
+
+Fixes movies that carry the wrong quality profile. Detects movies with a
+physical release date attached to a "wrong" profile (default
+`[SQP] SQP-3 (Audio)`) and switches them to the correct Remux-only profile
+(default `SQP-3-RemuxOnly`).
+
+This complements the reverse script: the reverse script only reverts movies
+tagged `auto-switched` by the forward script, while this script catches
+manually-assigned wrong profiles.
+
+#### Quick start
+
+1. Uses the same `scripts.conf` as the other scripts. Override the default
+   profile names if your Radarr uses different ones:
+
+   ```sh
+   WRONG_PROFILE_NAME="[SQP] SQP-3 (Audio)"
+   CORRECT_PROFILE_NAME="SQP-3-RemuxOnly"
+   ```
+
+2. Preview candidates:
+
+   ```sh
+   ./radarr/fix_quality_profiles.sh
+   ```
+
+3. Apply the fix:
+
+   ```sh
+   ./radarr/fix_quality_profiles.sh --apply
+   ```
+
+The script switches the profile and triggers a search for the Remux release.
+
+#### Flags
+
+Same as the reverse script (see table above).
+
+#### Scheduling
+
+```cron
+# Weekly, Sunday at 7am
+0 7 * * 0 /path/to/radarr/fix_quality_profiles.sh --apply >> /var/log/quality-profile-fix.log 2>&1
+```
+
+---
+
 ### scripts.conf.sample
 
 Configuration file used by all Connect scripts and the auto quality switch

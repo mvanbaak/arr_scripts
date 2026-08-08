@@ -10,6 +10,7 @@ This repository contains shell scripts and configuration files for Radarr automa
 - `radarr/connect/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
 - `radarr/auto_quality_switch.sh` - Switches movies from Remux-only to WebDL profiles when no physical release appears within a statistical threshold.
 - `radarr/auto_quality_switch_reverse.sh` - Switches movies back to Remux-only when physical release dates appear for previously switched movies.
+- `radarr/fix_quality_profiles.sh` - Switches movies with a physical release date from a wrong quality profile (default `[SQP] SQP-3 (Audio)`) to the correct Remux-only profile (default `SQP-3-RemuxOnly`).
 
 ---
 
@@ -108,6 +109,16 @@ Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
 **Run the reverse script with apply flag:**
 ```bash
 ./radarr/auto_quality_switch_reverse.sh --apply
+```
+
+**Run the quality profile fix in dry-run mode:**
+```bash
+./radarr/fix_quality_profiles.sh
+```
+
+**Run the quality profile fix with apply flag:**
+```bash
+./radarr/fix_quality_profiles.sh --apply
 ```
 
 ### Testing
@@ -293,10 +304,12 @@ radarr/connect/
 radarr/
   auto_quality_switch.sh          # Forward script: Remux-only → WebDL
   auto_quality_switch_reverse.sh  # Reverse script: WebDL → Remux-only
+  fix_quality_profiles.sh         # Wrong profile fix: SQP-3 (Audio) → SQP-3-RemuxOnly
 
 docs/
   quality-switch-spec.md          # Forward script specification
   quality-switch-reverse-spec.md  # Reverse script specification
+  quality-profile-fix-spec.md     # Quality profile fix specification
   cookie-extraction.md            # Guide for exporting YouTube cookies for yt-dlp
 ```
 
@@ -321,6 +334,10 @@ Required executables for `download_trailer.sh` (checked at runtime):
 - yt-dlp
 
 Required executables for `auto_quality_switch.sh` and `auto_quality_switch_reverse.sh` (checked at runtime):
+- curl
+- jq
+
+Required executables for `fix_quality_profiles.sh` (checked at runtime):
 - curl
 - jq
 

@@ -70,3 +70,10 @@ DEBUG="false"
 # Radarr tag to mark movies switched by the forward script.
 # Used by the reverse script to identify candidates for switching back.
 # AUTO_SWITCH_TAG="auto-switched"
+
+# --- Quality Profile Fix settings (optional) ---
+# Profile names for the quality profile fix script.
+# Movies with a physical release date on WRONG_PROFILE_NAME are switched
+# to CORRECT_PROFILE_NAME.
+# WRONG_PROFILE_NAME="[SQP] SQP-3 (Audio)"
+# CORRECT_PROFILE_NAME="SQP-3-RemuxOnly"
