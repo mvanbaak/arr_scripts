@@ -70,3 +70,12 @@ DEBUG="false"
 # Radarr tag to mark movies switched by the forward script.
 # Used by the reverse script to identify candidates for switching back.
 # AUTO_SWITCH_TAG="auto-switched"
+
+# --- TMDB Website Credentials (for tmdb_login.sh) ---
+# Required for push_physical_to_tmdb.sh to authenticate with TMDB website.
+TMDB_USERNAME=""
+TMDB_PASSWORD=""
+
+# Path to Netscape-format cookie file for TMDB website authentication.
+# Used by push_physical_to_tmdb.sh. Default: ~/.tmdb_cookies.txt
+# TMDB_COOKIE_FILE=""

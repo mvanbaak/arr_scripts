@@ -10,6 +10,9 @@ This repository contains shell scripts and configuration files for Radarr automa
 - `radarr/connect/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
 - `radarr/auto_quality_switch.sh` - Switches movies from Remux-only to WebDL profiles when no physical release appears within a statistical threshold.
 - `radarr/auto_quality_switch_reverse.sh` - Switches movies back to Remux-only when physical release dates appear for previously switched movies.
+- `radarr/fetch_physical_dates.sh` - Searches Blu-ray.com for physical release dates missing from Radarr, logs results for TMDB submission.
+- `radarr/tmdb_login.sh` - Playwright-based TMDB login script, exports session cookies for curl-based automation.
+- `radarr/push_physical_to_tmdb.sh` - Pushes physical release dates to TMDB via their website's Kendo grid API.
 
 ---
 
@@ -108,6 +111,51 @@ Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
 **Run the reverse script with apply flag:**
 ```bash
 ./radarr/auto_quality_switch_reverse.sh --apply
+```
+
+**Run the physical release date lookup:**
+```bash
+./radarr/fetch_physical_dates.sh
+```
+
+**Run with batch limit:**
+```bash
+./radarr/fetch_physical_dates.sh --limit 20
+```
+
+**Export results to JSON:**
+```bash
+./radarr/fetch_physical_dates.sh --export dates.json
+```
+
+**Export results to CSV:**
+```bash
+./radarr/fetch_physical_dates.sh --export dates.csv --csv
+```
+
+**Run the TMDB login script (requires display/Xvfb):**
+```bash
+./radarr/tmdb_login.sh
+```
+
+**Run the TMDB login with custom cookie output:**
+```bash
+./radarr/tmdb_login.sh --cookies /path/to/cookies.txt
+```
+
+**Push a single release date to TMDB:**
+```bash
+./radarr/push_physical_to_tmdb.sh <tmdb_id> <date> [title]
+```
+
+**Push release dates from pipe:**
+```bash
+./radarr/fetch_physical_dates.sh --json --quiet | ./radarr/push_physical_to_tmdb.sh
+```
+
+**Dry-run mode:**
+```bash
+./radarr/push_physical_to_tmdb.sh --dry-run 123456 2025-01-15 "Movie Title"
 ```
 
 ### Testing
@@ -293,10 +341,11 @@ radarr/connect/
 radarr/
   auto_quality_switch.sh          # Forward script: Remux-only → WebDL
   auto_quality_switch_reverse.sh  # Reverse script: WebDL → Remux-only
+  fetch_physical_dates.sh         # Blu-ray.com physical release date lookup
+  tmdb_login.sh                   # Playwright-based TMDB cookie export
+  push_physical_to_tmdb.sh        # Push release dates to TMDB via curl
 
 docs/
-  quality-switch-spec.md          # Forward script specification
-  quality-switch-reverse-spec.md  # Reverse script specification
   cookie-extraction.md            # Guide for exporting YouTube cookies for yt-dlp
 ```
 
@@ -323,6 +372,19 @@ Required executables for `download_trailer.sh` (checked at runtime):
 Required executables for `auto_quality_switch.sh` and `auto_quality_switch_reverse.sh` (checked at runtime):
 - curl
 - jq
+
+Required executables for `fetch_physical_dates.sh` (checked at runtime):
+- curl
+- jq
+
+Required executables for `tmdb_login.sh` (checked at runtime):
+- node (with playwright package)
+
+Required executables for `push_physical_to_tmdb.sh` (checked at runtime):
+- curl
+- jq
+- grep
+- sed
 
 ---
 

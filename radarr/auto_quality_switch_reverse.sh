@@ -44,6 +44,20 @@ while [ $# -gt 0 ]; do
         -j|--json) _FLAG_JSON=true; shift ;;
         -q|--quiet) _FLAG_QUIET=true; shift ;;
         -d|--debug) DEBUG=true; shift ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Switch movies back to Remux-only when physical release dates appear."
+            echo ""
+            echo "Options:"
+            echo "  --apply        Actually switch profiles (overrides DRY_RUN)"
+            echo "  -n, --dry-run  Preview mode, no changes (default)"
+            echo "  -j, --json     Output machine-readable JSON"
+            echo "  -q, --quiet    Only errors and counts"
+            echo "  -d, --debug    Verbose logging"
+            echo "  -h, --help     Show this help"
+            exit 0
+            ;;
         *) break ;;
     esac
 done
