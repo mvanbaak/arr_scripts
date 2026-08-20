@@ -11,7 +11,7 @@
 # Requirements:
 # * sh (tested with sh from FreeBSD base FreeBSD 14.1)
 # * curl (tested with 8.10.1)
-# * hdrprobe (tested with 0.7.0)
+# * hdrprobe (tested with 0.7.0 and 1.0.1)
 # * jq (tested with 1.7.1)
 # * mktemp (tested with mktemp from FreeBSD base, FreeBSD 14.1)
 #
