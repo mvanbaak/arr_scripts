@@ -390,7 +390,7 @@ via the `STORAGE_MODE` config.
 
 By default it downloads recaps in the series' original language and Brazilian
 Portuguese (pt-BR), with Brazilian Portuguese subtitles for original-language
-recaps. These preferences can be configured in `sonarr/connect/scripts.conf`.
+recaps. These preferences can be configured in `sonarr/scripts.conf`.
 
 Requires a TMDB API key (set `TMDB_API_KEY` in the config) and `yt-dlp`.
 

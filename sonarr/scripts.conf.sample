@@ -1,0 +1,27 @@
+# SAMPLE configuration file - Sonarr settings.
+# Move this file to 'scripts.conf' in the same directory (sonarr/).
+# These values override the shared settings from common/scripts.conf.
+
+# Sonarr info used to talk to its api
+SONARR_API_URL="http://ip.of.sonarr:8989/api/v3"
+SONARR_API_KEY="your_sonarr_api_key"
+
+# Recap languages to search (comma-separated, ISO 639-1 with optional region)
+# "original" is a special value that resolves to the series' original language at runtime
+RECAP_LANGUAGES="original,pt-BR"
+
+# Subtitle languages to download for original-language recaps (comma-separated)
+# Uses yt-dlp's --sub-langs. Empty value disables subtitles.
+RECAP_SUBTITLE_LANGS="pt-BR"
+
+# Fan-made recap handling: never | fallback | always
+#   never    - only official recaps (TMDB + YouTube)
+#   fallback - official first, fan-made only when no official recap exists (default)
+#   always   - always also download fan-made recaps alongside official ones
+FAN_MADE="fallback"
+
+# Where to store recaps following the Plex extras naming scheme:
+#   show   - ShowName (Year)/Other/Recap-S01-official-en.mp4
+#   season - ShowName (Year)/Season 01/Other/Recap-S01-official-en.mp4
+#   both   - show level, hardlinked (or copied) into the season folder
+STORAGE_MODE="show"

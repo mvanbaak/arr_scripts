@@ -26,8 +26,8 @@
 #     * Sonarr Connect Download trigger plus bulk backfill mode
 
 # Load shared library and configuration
-. "$(dirname "$0")/../../radarr/connect/scripts_common.sh"
-load_config
+. "$(dirname "$0")/../../common/scripts_common.sh"
+load_config "$(dirname "$0")/.."
 
 # Recap-specific defaults
 : "${RECAP_LANGUAGES:=original,pt-BR}"
@@ -501,7 +501,7 @@ check_needed_executables "curl jq ln mkdir mktemp tr yt-dlp"
 
 if [ -z "${TMDB_API_KEY}" ]
 then
-    echo "ERROR: TMDB_API_KEY is not set. Configure it in sonarr/connect/scripts.conf" >&2
+    echo "ERROR: TMDB_API_KEY is not set. Configure it in common/scripts.conf" >&2
     exit 1
 fi
 
