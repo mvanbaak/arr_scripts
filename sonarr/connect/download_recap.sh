@@ -505,12 +505,15 @@ process_series_backfill() {
     local _series_id _series_title _series_path _tmdb_id
     local _seasons _season _recap_season _recaps_temp _has_new _dl_status
     local _source _yt_key _video_name _lang _is_original
+    local _new_count _series_count _qualified
 
     _series_id="$1"
     _series_title="$2"
     _series_path="$3"
     _tmdb_id="$4"
     _has_new=false
+    _new_count=0
+    _series_count=0
 
     [ -z "${_series_path}" ] && return 0
 
@@ -541,19 +544,22 @@ process_series_backfill() {
             select_best_recaps "${_recaps_temp}" "${_recap_season}" > "${_selected_temp}"
             if [ -s "${_selected_temp}" ]
             then
+                _qualified=0
                 while IFS='|' read -r _source _yt_key _video_name _lang _is_original; do
                     if [ -n "${_yt_key}" ]
                     then
+                        _qualified=$((_qualified + 1))
                         download_recap "${_yt_key}" "${_video_name}" "${_source}" "${_lang}" "${_is_original}" "${_recap_season}" "${_series_path}"
                         _dl_status=$?
                         case $_dl_status in
-                            0) _has_new=true ;;
-                            1) debug_log "Skipped, already downloaded" ;;
-                            2) debug_log "Dry-run, would download" ;;
+                            0) _has_new=true; _new_count=$((_new_count + 1)) ;;
+                            1) debug_log "${_series_title} S${_recap_season}: skipped (already downloaded)" ;;
+                            2) debug_log "${_series_title} S${_recap_season}: dry-run, would download" ;;
                             *) echo "ERROR: Failed to download recap ${_yt_key} for series ${_series_id}" >&2 ;;
                         esac
                     fi
                 done < "${_selected_temp}"
+                [ "${_qualified}" -eq 0 ] && debug_log "${_series_title} S${_recap_season}: candidates found, none qualified (junk/unavailable/no yt-dlp results)"
             fi
             rm -f "${_selected_temp}"
         fi
@@ -561,8 +567,11 @@ process_series_backfill() {
         sleep 1
     done
 
+    _series_count=$((_series_count + 1))
     rm -f "${_recaps_temp}"
     trap - INT TERM EXIT
+
+    debug_log "Recap backfill complete: ${_new_count} file(s) newly downloaded, ${_series_count} series processed"
 
     [ "${_has_new}" = "true" ] && [ "${DRY_RUN}" != "true" ] && notify_autopulse "${_series_path}"
 }
