@@ -230,6 +230,73 @@ discover_recaps() {
     done
 }
 
+# Select the single best recap candidate per language.
+# Arguments: candidate_file recap_season
+# Candidate file lines: source|yt_key|video_name|lang|is_original|tier
+# Tier priority: tmdb (1) > yt (2) > fan (3); ties broken by title score.
+# Outputs: "source|yt_key|video_name|lang|is_original" winner per lang.
+select_best_recaps() {
+    local _candidates _recap_season
+
+    _candidates="$1"
+    _recap_season="$2"
+
+    [ ! -s "${_candidates}" ] && return 0
+
+    debug_log "Selecting best recaps for season ${_recap_season}"
+
+    awk -F'|' -v season="${_recap_season}" '
+        function junk(t) {
+            return (index(t, "trailer") || index(t, "teaser") ||
+                    index(t, "soundtrack") || index(t, "reaction") ||
+                    index(t, "review") || index(t, "interview") ||
+                    index(t, "episode") || index(t, "crash course") ||
+                    index(t, "live") || index(t, "official music"))
+        }
+        function score(t,   sc) {
+            sc = 0
+            if (t ~ ("(season[ .]?0*" season "|s0*" season "[^0-9]|[0-9]+-0*" season ")"))
+                sc += 2
+            if (index(t, "recap") > 0)
+                sc += 1
+            if (index(t, "before season") > 0)
+                sc += 1
+            return sc
+        }
+        {
+            if ($2 == "") next
+            key = $2; name = $3; lang = $4; orig = $5; tier = $6
+            t = tolower(name)
+            if (junk(t))
+                next
+            if (tier != "tmdb" && index(t, "recap") == 0)
+                next
+            prio = (tier == "tmdb" ? 1 : (tier == "yt" ? 2 : 3))
+            sc = score(t)
+            if ((key in kprio) && (prio > kprio[key] || \
+                (prio == kprio[key] && sc < ksc[key])))
+                next
+            kprio[key] = prio; ksc[key] = sc; kline[key] = $1 "|" key "|" name "|" lang "|" orig
+        }
+        END {
+            for (key in kline) {
+                split(kline[key], f, "|")
+                lang = f[4]
+                prio = kprio[key]; sc = ksc[key]
+                if ((lang in lprio) && (prio > lprio[lang] || \
+                    (prio == lprio[lang] && sc < lsc[lang])))
+                    continue
+                lprio[lang] = prio; lsc[lang] = sc; lline[lang] = kline[key]
+            }
+            for (lang in lline)
+                print lline[lang]
+        }
+    ' "${_candidates}" | while IFS='|' read -r _source _yt_key _video_name _lang _is_original; do
+        debug_log "Selected '${_video_name}' (${_source}/${_lang}) for recap S${_recap_season}"
+        printf '%s|%s|%s|%s|%s\n' "${_source}" "${_yt_key}" "${_video_name}" "${_lang}" "${_is_original}"
+    done
+}
+
 # Download a single recap video and place it per STORAGE_MODE
 # Arguments: yt_key video_name source lang is_original recap_season series_path
 download_recap() {
