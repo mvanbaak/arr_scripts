@@ -146,27 +146,27 @@ Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
 
 **Run the TMDB login script (requires display/Xvfb):**
 ```bash
-./radarr/tmdb_login.sh
+./common/tmdb_login.sh
 ```
 
 **Run the TMDB login with custom cookie output:**
 ```bash
-./radarr/tmdb_login.sh --cookies /path/to/cookies.txt
+./common/tmdb_login.sh --cookies /path/to/cookies.txt
 ```
 
 **Push a single release date to TMDB:**
 ```bash
-./radarr/push_physical_to_tmdb.sh <tmdb_id> <date> [title]
+./common/push_physical_to_tmdb.sh <tmdb_id> <date> [title]
 ```
 
 **Push release dates from pipe:**
 ```bash
-./radarr/fetch_physical_dates.sh --json --quiet | ./radarr/push_physical_to_tmdb.sh
+./radarr/fetch_physical_dates.sh --json --quiet | ./common/push_physical_to_tmdb.sh
 ```
 
 **Dry-run mode:**
 ```bash
-./radarr/push_physical_to_tmdb.sh --dry-run 123456 2025-01-15 "Movie Title"
+./common/push_physical_to_tmdb.sh --dry-run 123456 2025-01-15 "Movie Title"
 ```
 
 ### Testing
@@ -342,23 +342,28 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 ## File Organization
 
 ```
+common/
+  scripts_common.sh              # Shared library (sourced by all scripts)
+  scripts.conf.sample            # Shared configuration
+  tmdb_login.sh                  # Playwright-based TMDB cookie export
+  push_physical_to_tmdb.sh       # Push release dates to TMDB via curl
+
 radarr/connect/
-  scripts_common.sh    # Shared library (sourced by all scripts)
-  tag_dvfelmel.sh      # Dolby Vision FEL/MEL tagging script
-  download_trailer.sh  # Trailer download script
-  scripts.conf.sample  # Sample configuration
-  scripts.conf         # Actual configuration (not in git)
+  tag_dvfelmel.sh                # Dolby Vision FEL/MEL tagging script
+  download_trailer.sh            # Trailer download script
+  scripts.conf                   # Actual configuration (not in git)
 
 radarr/
-  auto_quality_switch.sh          # Forward script: Remux-only → WebDL
-  auto_quality_switch_reverse.sh  # Reverse script: WebDL → Remux-only
-  fix_quality_profiles.sh         # Wrong profile fix: SQP-3 (Audio) → SQP-3-RemuxOnly
-  fetch_physical_dates.sh         # Blu-ray.com physical release date lookup
-  tmdb_login.sh                   # Playwright-based TMDB cookie export
-  push_physical_to_tmdb.sh        # Push release dates to TMDB via curl
+  auto_quality_switch.sh         # Forward script: Remux-only → WebDL
+  auto_quality_switch_reverse.sh # Reverse script: WebDL → Remux-only
+  fix_quality_profiles.sh        # Wrong profile fix: SQP-3 (Audio) → SQP-3-RemuxOnly
+  fetch_physical_dates.sh        # Blu-ray.com physical release date lookup
+  scripts.conf.sample            # Sample Radarr configuration
+  research/
+    release_date_stats.sh        # Statistical analysis of web vs physical release dates
 
 docs/
-  cookie-extraction.md            # Guide for exporting YouTube cookies for yt-dlp
+  cookie-extraction.md           # Guide for exporting YouTube cookies for yt-dlp
 ```
 
 ---
