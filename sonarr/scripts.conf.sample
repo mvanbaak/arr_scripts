@@ -17,11 +17,15 @@ RECAP_SUBTITLE_LANGS="pt-BR"
 # Fan-made recap handling: never | fallback | always
 #   never    - only official recaps (TMDB + YouTube)
 #   fallback - official first, fan-made only when no official recap exists (default)
-#   always   - always also download fan-made recaps alongside official ones
+#   always   - always also search fan-made; official recaps still rank higher
 FAN_MADE="fallback"
 
-# Where to store recaps following the Plex extras naming scheme:
+# Where to store recaps following the Plex extras naming scheme.
+# A recap of season N lands in the Season N+1 folder (the season being watched):
 #   show   - ShowName (Year)/Other/Recap-S01-official-en.mp4
-#   season - ShowName (Year)/Season 01/Other/Recap-S01-official-en.mp4
+#   season - ShowName (Year)/Season 02/Other/Recap-S01-official-en.mp4
 #   both   - show level, hardlinked (or copied) into the season folder
 STORAGE_MODE="show"
+
+# How many YouTube results to consider per recap search (default 10)
+RECAP_SEARCH_COUNT="10"

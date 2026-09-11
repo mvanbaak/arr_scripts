@@ -381,12 +381,16 @@ series starts. Season gaps can be years, so the recap gets you back into the
 story before the premiere.
 
 Official recaps are looked up on TMDB (season videos endpoint). If TMDB has no
-recap, YouTube is searched for official recaps. Fan-made recap search is
-optional via the `FAN_MADE` config (`never | fallback | always`).
+recap, YouTube is searched for official recaps in the series' original language
+only. Fan-made recap search is optional via the `FAN_MADE` config
+(`never | fallback | always`). From all candidates the script selects a single
+best recap per (season, language), filtering out junk titles (trailers,
+reactions, soundtracks, single-episode recaps).
 
-Recaps follow the Plex naming scheme for TV extras and are stored in an `Other/
-` directory at the show level, season level, or both (hardlinked to save space)
-via the `STORAGE_MODE` config.
+Recaps follow the Plex naming scheme for TV extras and are stored in an `Other/`
+directory at the show level, season level, or both (hardlinked to save space)
+via the `STORAGE_MODE` config. A recap of season N is stored in the Season N+1
+folder (the watched season), with the filename still naming the recapped season.
 
 By default it downloads recaps in the series' original language and Brazilian
 Portuguese (pt-BR), with Brazilian Portuguese subtitles for original-language
@@ -401,6 +405,11 @@ $ ./download_recap.sh bulk
 If run like this, it will loop over all series in Sonarr and download missing
 recaps for already-downloaded seasons. Can be used to backfill an existing
 library.
+
+```sh
+# Remove pre-v0.2.0 misnamed/junk recap files
+find /path/to/Series -path "*/Other/Recap-*" -type f -delete
+```
 
 ## Contributing
 

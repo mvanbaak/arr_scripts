@@ -17,6 +17,14 @@
 # * tr
 # * yt-dlp
 #
+# Version 0.2.0 (Released 2026-09-11)
+#   * Download single best recap per (season, language) via candidate ranking
+#   * Store recap of season N in the Season N+1 folder
+#   * Restrict YouTube recap search to the series original language
+#   * Filter junk titles (trailers, reactions, soundtracks, episode recaps)
+#   * Configurable search width via RECAP_SEARCH_COUNT
+#   * Richer debug output (queries, counts, selection rationale)
+#
 # Version 0.1.0 (Released 2026-09-11)
 #   * Initial implementation
 #     * TMDB official recap discovery (season videos endpoint)
