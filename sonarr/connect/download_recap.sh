@@ -462,24 +462,35 @@ process_event() {
         return 0
     fi
 
-    # Download each recap, track if anything is actually new
     _has_new=false
-    while IFS='|' read -r _source _yt_key _video_name _lang _is_original; do
-        if [ -n "${_yt_key}" ]
-        then
-            download_recap "${_yt_key}" "${_video_name}" "${_source}" "${_lang}" "${_is_original}" "${_recap_season}" "${_series_path}"
-            _dl_status=$?
-            case $_dl_status in
-                0) _has_new=true ;;
-                1) debug_log "Skipped, already downloaded" ;;
-                2) debug_log "Dry-run, would download" ;;
-                *) echo "ERROR: Failed to download recap ${_yt_key} for series ${SERIES_ID}" >&2 ;;
-            esac
-        fi
-    done < "${_recaps_temp}"
+    _selected_temp=$(mktemp)
+    # shellcheck disable=SC2064
+    trap 'rm -f "${_recaps_temp}" "${_selected_temp}"; exit 130' INT TERM
+    trap 'rm -f "${_recaps_temp}" "${_selected_temp}"' EXIT
+
+    select_best_recaps "${_recaps_temp}" "${_recap_season}" > "${_selected_temp}"
+
+    if [ -s "${_selected_temp}" ]
+    then
+        while IFS='|' read -r _source _yt_key _video_name _lang _is_original; do
+            if [ -n "${_yt_key}" ]
+            then
+                download_recap "${_yt_key}" "${_video_name}" "${_source}" "${_lang}" "${_is_original}" "${_recap_season}" "${_series_path}"
+                _dl_status=$?
+                case $_dl_status in
+                    0) _has_new=true ;;
+                    1) debug_log "Skipped, already downloaded" ;;
+                    2) debug_log "Dry-run, would download" ;;
+                    *) echo "ERROR: Failed to download recap ${_yt_key} for series ${SERIES_ID}" >&2 ;;
+                esac
+            fi
+        done < "${_selected_temp}"
+    else
+        debug_log "No qualifying recaps for season ${_recap_season}"
+    fi
 
     [ "${_has_new}" = "true" ] && [ "${DRY_RUN}" != "true" ] && notify_autopulse "${_series_path}"
-    rm -f "${_recaps_temp}"
+    rm -f "${_recaps_temp}" "${_selected_temp}"
     trap - INT TERM EXIT
 }
 
@@ -521,19 +532,25 @@ process_series_backfill() {
         then
             debug_log "No recaps found for ${_series_title} season ${_recap_season}"
         else
-            while IFS='|' read -r _source _yt_key _video_name _lang _is_original; do
-                if [ -n "${_yt_key}" ]
-                then
-                    download_recap "${_yt_key}" "${_video_name}" "${_source}" "${_lang}" "${_is_original}" "${_recap_season}" "${_series_path}"
-                    _dl_status=$?
-                    case $_dl_status in
-                        0) _has_new=true ;;
-                        1) debug_log "Skipped, already downloaded" ;;
-                        2) debug_log "Dry-run, would download" ;;
-                        *) echo "ERROR: Failed to download recap ${_yt_key} for series ${_series_id}" >&2 ;;
-                    esac
-                fi
-            done < "${_recaps_temp}"
+            _selected_temp=$(mktemp)
+            select_best_recaps "${_recaps_temp}" "${_recap_season}" > "${_selected_temp}"
+            if [ -s "${_selected_temp}" ]
+            then
+                while IFS='|' read -r _source _yt_key _video_name _lang _is_original; do
+                    if [ -n "${_yt_key}" ]
+                    then
+                        download_recap "${_yt_key}" "${_video_name}" "${_source}" "${_lang}" "${_is_original}" "${_recap_season}" "${_series_path}"
+                        _dl_status=$?
+                        case $_dl_status in
+                            0) _has_new=true ;;
+                            1) debug_log "Skipped, already downloaded" ;;
+                            2) debug_log "Dry-run, would download" ;;
+                            *) echo "ERROR: Failed to download recap ${_yt_key} for series ${_series_id}" >&2 ;;
+                        esac
+                    fi
+                done < "${_selected_temp}"
+            fi
+            rm -f "${_selected_temp}"
         fi
 
         sleep 1
