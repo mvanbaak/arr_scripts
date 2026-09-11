@@ -49,7 +49,7 @@
 
 # Load shared library and configuration
 . "$(dirname "$0")/../../common/scripts_common.sh"
-load_config
+load_config "$(dirname "$0")/.."
 
 # Trailer-specific defaults
 : "${TRAILER_LANGUAGES:=original,pt-BR}"

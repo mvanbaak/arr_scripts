@@ -57,7 +57,7 @@
 
 # Load shared library and configuration
 . "$(dirname "$0")/../../common/scripts_common.sh"
-load_config
+load_config "$(dirname "$0")/.."
 
 # Tag-specific defaults
 : "${LOG_FILE:=none}" # If 'none' log to stdout/stderr
