@@ -2,6 +2,26 @@
 
 Random collection of scripts and configuration files used by *arr tools in my setup
 
+### Migrating from old layout
+
+If you updated from a version that stored config in `radarr/connect/scripts.conf`,
+migrate to the new layout:
+
+```sh
+./radarr/migrate_config.sh
+```
+
+This copies your existing config to `radarr/scripts.conf` (new location).
+The old file is kept as backup.
+
+Scripts will still work with the old path via a temporary fallback, but
+**this fallback will be removed in a future update** — migrate soon.
+
+Optional: move shared settings (`TMDB_API_KEY`, `YT_DLP_*`, `AUTOPULSE_*`,
+`DRY_RUN`, `DEBUG`) to `common/scripts.conf` for cross-app sharing.
+
+### Scripts
+
 ### auto_quality_switch.sh
 
 Automatically switches movies from a Remux-only profile to a WebDL-enabled
