@@ -87,13 +87,38 @@ new layout, referencing the common config explicitly.
 
 ## Docs updates
 
-- `AGENTS.md`: script list refs, shellcheck commands, run commands, File
-  Organization tree, dependencies mention.
-- `README.md`: config setup commands (`cp radarr/connect/scripts.conf.sample
-  ...` → `cp radarr/scripts.conf.sample radarr/scripts.conf`), plus new common
-  config step; any `radarr/connect/` path references in prose.
-- `docs/cookie-extraction.md`: no path changes needed (references `scripts.conf`
-  generically).
+Every path/example reference in docs and in-file text must match the new
+layout. Audit is exhaustive — no stale references may remain.
+
+- `README.md`:
+  - Config setup commands: `cp radarr/connect/scripts.conf.sample
+    radarr/connect/scripts.conf` → `cp common/scripts.conf.sample
+    common/scripts.conf` plus `cp radarr/scripts.conf.sample
+    radarr/scripts.conf`.
+  - "`scripts.conf`" prose references (config description, trailer/tag/recap
+    sections) → name the correct file: `common/scripts.conf` for shared vars
+    (TMDB, yt-dlp, autopulse), `radarr/scripts.conf` or `sonarr/scripts.conf`
+    for app vars.
+  - `tmdb_login.sh` and `push_physical_to_tmdb.sh` invocations →
+    `./common/...`, including the pipe example
+    (`fetch_physical_dates.sh ... | common/push_physical_to_tmdb.sh`) and the
+    cron example.
+  - Sonarr/recap section: `sonarr/connect/scripts.conf` → `sonarr/scripts.conf`
+    (updated during the recap branch rebase).
+  - Top-level radarr script paths (`./radarr/auto_quality_switch.sh`, cron
+    `/path/to/radarr/...`) are unchanged and stay.
+- `docs/cookie-extraction.md`: point the `YT_DLP_COOKIE_FILE` setup at
+  `common/scripts.conf`.
+- `AGENTS.md`: script list refs (`radarr/connect/…` → `common/…` where moved),
+  shellcheck commands, run commands, File Organization tree, dependency list
+  (add `common/`), config-setup text.
+- `scripts.conf.sample` header comments ("same directory as the
+  connect/custom/trigger scripts") → rewritten for the new layout. `common/`
+  sample gains an explicit "sourced by every app config; app configs override"
+  note.
+- Error/help text in scripts: `tmdb_login.sh` "must be set in scripts.conf" →
+  "must be set in common/scripts.conf". Other error texts referencing
+  `scripts.conf` generically are fine.
 
 ## Manual user step (not in this branch)
 
@@ -127,7 +152,11 @@ All other radarr scripts use `radarr_api_get`, `RADARR_API_URL/KEY` and stay.
 
 ## Verification
 
-- `git grep -E "connect/(scripts_common|scripts.conf)"` → no stale hits.
+- `git grep -E "connect/(scripts_common|scripts\.conf)"` → no stale hits.
+- `git grep -n "radarr/(tmdb_login|push_physical_to_tmdb)"` → no stale hits in
+  README/AGENTS/cron examples.
+- `git grep -n "radarr/connect/"` → only the connect-scripts' own relative
+  source references remain.
 - `sh -n` + `shellcheck -e SC1091,SC3043` on every touched script.
-- Test-event run: `./radarr/connect/download_trailer.sh Test` after a temporary
-  test config exists (or with `TMDB_API_KEY` set) exits 0.
+- Test-event run: `TMDB_API_KEY=x ./radarr/connect/download_trailer.sh Test`
+  exits 0.
