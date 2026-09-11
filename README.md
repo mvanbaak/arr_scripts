@@ -15,7 +15,7 @@ grab a WebDL release instead of leaving them in permanent limbo.
 #### Prerequisites
 
 - `curl` and `jq` 1.6+ (installed by default on most systems)
-- Radarr API URL and key configured in `scripts.conf`
+- Radarr API URL and key configured in `radarr/scripts.conf`
 
 Install `jq` if missing:
 
@@ -41,7 +41,7 @@ brew install jq
 cp common/scripts.conf.sample common/scripts.conf
 ```
 
-2. Set `RADARR_API_URL` and `RADARR_API_KEY` in `scripts.conf`.
+2. Set `RADARR_API_URL` and `RADARR_API_KEY` in `radarr/scripts.conf`.
    Set `SOURCE_PROFILE_NAME` and `TARGET_PROFILE_NAME` to match your
    Radarr quality profile names exactly (case-sensitive).
 
@@ -112,7 +112,7 @@ Run weekly — physical releases don't appear daily.
 
 #### Quick start
 
-1. Uses the same `scripts.conf` as the forward script.
+1. Uses the same `radarr/scripts.conf` as the forward script.
 2. Preview candidates:
 
 ```sh
@@ -156,7 +156,7 @@ manually-assigned wrong profiles.
 
 #### Quick start
 
-1. Uses the same `scripts.conf` as the other scripts. Override the default
+1. Uses the same `radarr/scripts.conf` as the other scripts. Override the default
    profile names if your Radarr uses different ones:
 
    ```sh
@@ -193,8 +193,8 @@ Same as the reverse script (see table above).
 
 ### scripts.conf.sample
 
-Configuration file used by all Connect scripts and the auto quality switch
-scripts. Copy to `scripts.conf` and edit:
+Shared configuration, sourced before `radarr/scripts.conf`. Copy to
+`scripts.conf` and set app-independent settings (TMDB, yt-dlp, Autopulse):
 
 ```sh
 cp common/scripts.conf.sample common/scripts.conf
@@ -264,10 +264,10 @@ file works with both `push_physical_to_tmdb.sh` and `yt-dlp`.
 
 ```sh
 # Login and export cookies
-./radarr/tmdb_login.sh
+./common/tmdb_login.sh
 
 # Export to custom location
-./radarr/tmdb_login.sh --cookies /path/to/cookies.txt
+./common/tmdb_login.sh --cookies /path/to/cookies.txt
 ```
 
 #### Prerequisites
@@ -302,13 +302,13 @@ Accepts single movies via arguments or batch processing via pipe from
 
 ```sh
 # Single movie
-./radarr/push_physical_to_tmdb.sh 123456 2026-09-08 "Movie Title"
+./common/push_physical_to_tmdb.sh 123456 2026-09-08 "Movie Title"
 
 # Pipeline from fetch_physical_dates.sh
-./radarr/fetch_physical_dates.sh --json --quiet | ./radarr/push_physical_to_tmdb.sh
+./radarr/fetch_physical_dates.sh --json --quiet | ./common/push_physical_to_tmdb.sh
 
 # Dry-run mode
-./radarr/push_physical_to_tmdb.sh --dry-run 123456 2026-09-08 "Movie Title"
+./common/push_physical_to_tmdb.sh --dry-run 123456 2026-09-08 "Movie Title"
 ```
 
 #### Prerequisites
@@ -316,7 +316,7 @@ Accepts single movies via arguments or batch processing via pipe from
 - `curl`, `jq`, `grep`, `sed` (POSIX tools)
 - Cookie file from `tmdb_login.sh` (default: `~/.tmdb_cookies.txt`)
 
-Set `TMDB_COOKIE_FILE` in `scripts.conf` to use a custom path:
+Set `TMDB_COOKIE_FILE` in `common/scripts.conf` to use a custom path:
 
 ```sh
 TMDB_COOKIE_FILE="/path/to/cookies.txt"
@@ -341,7 +341,7 @@ Run after `fetch_physical_dates.sh` to push found dates:
 
 ```cron
 # Weekly, push dates to TMDB
-0 9 * * 1 /path/to/radarr/fetch_physical_dates.sh --json --quiet | /path/to/radarr/push_physical_to_tmdb.sh >> /var/log/push-physical.log 2>&1
+0 9 * * 1 /path/to/radarr/fetch_physical_dates.sh --json --quiet | /path/to/common/push_physical_to_tmdb.sh >> /var/log/push-physical.log 2>&1
 ```
 
 ---
@@ -393,9 +393,9 @@ Trailers are saved in a `Trailers/` subdirectory inside the movie folder.
 By default it downloads trailers in the movie's original language and
 Brazilian Portuguese (pt-BR), with Brazilian Portuguese subtitles for
 original-language trailers. These preferences can be configured in
-`scripts.conf`.
+`radarr/scripts.conf`.
 
-Requires a TMDB API key (set `TMDB_API_KEY` in `scripts.conf`).
+Requires a TMDB API key (set `TMDB_API_KEY` in `common/scripts.conf`).
 Get one at https://www.themoviedb.org/settings/api
 
 For age-restricted content, YouTube cookie authentication is supported.
