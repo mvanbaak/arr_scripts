@@ -1,6 +1,7 @@
 # arr_scripts
 
-Random collection of scripts and configuration files used by *arr tools in my setup
+This repository contains shell scripts and configuration files for Radarr and
+Sonarr automation.
 
 ### Migrating from old layout
 
@@ -365,6 +366,41 @@ Run after `fetch_physical_dates.sh` to push found dates:
 ```
 
 ---
+
+## sonarr/connect
+
+Script to be used as a Connect / Custom Script in Sonarr.
+
+### download_recap.sh
+
+Script to be run with Sonarr Custom Script on:
+- On Import / On Upgrade
+
+Script downloads the previous season's recap video when a new season of a TV
+series starts. Season gaps can be years, so the recap gets you back into the
+story before the premiere.
+
+Official recaps are looked up on TMDB (season videos endpoint). If TMDB has no
+recap, YouTube is searched for official recaps. Fan-made recap search is
+optional via the `FAN_MADE` config (`never | fallback | always`).
+
+Recaps follow the Plex naming scheme for TV extras and are stored in an `Other/
+` directory at the show level, season level, or both (hardlinked to save space)
+via the `STORAGE_MODE` config.
+
+By default it downloads recaps in the series' original language and Brazilian
+Portuguese (pt-BR), with Brazilian Portuguese subtitles for original-language
+recaps. These preferences can be configured in `sonarr/connect/scripts.conf`.
+
+Requires a TMDB API key (set `TMDB_API_KEY` in the config) and `yt-dlp`.
+
+The script can also be run as:
+```sh
+$ ./download_recap.sh bulk
+```
+If run like this, it will loop over all series in Sonarr and download missing
+recaps for already-downloaded seasons. Can be used to backfill an existing
+library.
 
 ## Contributing
 
