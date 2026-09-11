@@ -7,13 +7,13 @@ This repository contains shell scripts and configuration files for Radarr automa
 **Scripts:**
 - `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
 - `radarr/connect/download_trailer.sh` - Downloads official trailers from TMDB/YouTube for movies in Radarr.
-- `radarr/connect/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
+- `common/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
 - `radarr/auto_quality_switch.sh` - Switches movies from Remux-only to WebDL profiles when no physical release appears within a statistical threshold.
 - `radarr/auto_quality_switch_reverse.sh` - Switches movies back to Remux-only when physical release dates appear for previously switched movies.
 - `radarr/fix_quality_profiles.sh` - Switches movies with a physical release date from a wrong quality profile (default `[SQP] SQP-3 (Audio)`) to the correct Remux-only profile (default `SQP-3-RemuxOnly`).
 - `radarr/fetch_physical_dates.sh` - Searches Blu-ray.com for physical release dates missing from Radarr, logs results for TMDB submission.
-- `radarr/tmdb_login.sh` - Playwright-based TMDB login script, exports session cookies for curl-based automation.
-- `radarr/push_physical_to_tmdb.sh` - Pushes physical release dates to TMDB via their website's Kendo grid API.
+- `common/tmdb_login.sh` - Playwright-based TMDB login script, exports session cookies for curl-based automation.
+- `common/push_physical_to_tmdb.sh` - Pushes physical release dates to TMDB via their website's Kendo grid API.
 
 ---
 

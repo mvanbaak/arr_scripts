@@ -29,8 +29,8 @@
 #     * Pretty table + JSON output
 
 # Load shared library and configuration
-. "$(dirname "$0")/../connect/scripts_common.sh"
-load_config "$(dirname "$0")/../connect"
+. "$(dirname "$0")/../../common/scripts_common.sh"
+load_config "$(dirname "$0")/.."
 
 : "${OUTPUT_JSON:=false}"
 : "${DEBUG:=false}"

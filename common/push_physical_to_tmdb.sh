@@ -14,8 +14,8 @@
 # Version 0.1.0 (Released 2026-07-27)
 #   * Initial implementation
 
-. "$(dirname "$0")/connect/scripts_common.sh"
-load_config "$(dirname "$0")/connect"
+. "$(dirname "$0")/scripts_common.sh"
+load_config "$(dirname "$0")"
 
 : "${DEBUG:=false}"
 : "${TMDB_COOKIE_FILE:=${HOME}/.tmdb_cookies.txt}"

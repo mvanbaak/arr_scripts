@@ -44,7 +44,7 @@
 #     * Bulk mode for backfilling existing library
 
 # Load shared library and configuration
-. "$(dirname "$0")/scripts_common.sh"
+. "$(dirname "$0")/../../common/scripts_common.sh"
 load_config
 
 # Trailer-specific defaults

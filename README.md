@@ -38,7 +38,7 @@ brew install jq
 1. Copy and edit the config:
 
 ```sh
-cp radarr/connect/scripts.conf.sample radarr/connect/scripts.conf
+cp common/scripts.conf.sample common/scripts.conf
 ```
 
 2. Set `RADARR_API_URL` and `RADARR_API_KEY` in `scripts.conf`.
@@ -197,7 +197,7 @@ Configuration file used by all Connect scripts and the auto quality switch
 scripts. Copy to `scripts.conf` and edit:
 
 ```sh
-cp radarr/connect/scripts.conf.sample radarr/connect/scripts.conf
+cp common/scripts.conf.sample common/scripts.conf
 ```
 
 See the sample file for all available settings with documentation.

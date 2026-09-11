@@ -19,8 +19,8 @@
 #   * Initial implementation
 
 # Load shared library and configuration
-. "$(dirname "$0")/connect/scripts_common.sh"
-load_config "$(dirname "$0")/connect"
+. "$(dirname "$0")/../common/scripts_common.sh"
+load_config
 
 # Script-specific defaults
 : "${SOURCE_PROFILE_NAME:=Remux-2160p}"

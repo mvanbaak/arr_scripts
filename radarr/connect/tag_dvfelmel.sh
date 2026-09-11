@@ -56,7 +56,7 @@
 # The fine folks in the TRaSH-Guides discord have it figured out. Thanks for sharing!
 
 # Load shared library and configuration
-. "$(dirname "$0")/scripts_common.sh"
+. "$(dirname "$0")/../../common/scripts_common.sh"
 load_config
 
 # Tag-specific defaults
