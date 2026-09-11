@@ -17,6 +17,7 @@ single `radarr/connect/scripts.conf` is also app-agnostic despite living under
 common/
   scripts_common.sh          # shared library (moved from radarr/connect/)
   tmdb_login.sh              # TMDB cookie export; not radarr-specific (moved from radarr/)
+  push_physical_to_tmdb.sh   # pushes dates to TMDB website; no radarr API usage (moved from radarr/)
   scripts.conf.sample        # shared config (new), plus local scripts.conf
 radarr/
   connect/
@@ -25,8 +26,7 @@ radarr/
   auto_quality_switch.sh
   auto_quality_switch_reverse.sh
   fix_quality_profiles.sh
-  fetch_physical_dates.sh
-  push_physical_to_tmdb.sh
+  fetch_physical_dates.sh    # only radarr script tied to TMDB push flow
   research/
     release_date_stats.sh    # stays nested
   scripts.conf.sample        # radarr config (moved from connect/), plus local scripts.conf
@@ -63,9 +63,9 @@ Contents split:
   `STORAGE_MODE`).
 
 `load_config($1)` accepts the app config dir; the shared config is derived as
-`../common` from it. For `common/tmdb_login.sh` (config dir defaults to
-`common/`), both paths resolve to the same `common/scripts.conf` — sourced
-twice, harmless.
+`../common` from it. For `common/` scripts (`tmdb_login.sh`,
+`push_physical_to_tmdb.sh`, config dir defaults to `common/`), both paths
+resolve to the same `common/scripts.conf` — sourced twice, harmless.
 
 Note: some scripts currently pass `"$(dirname "$0")/connect"` as the config
 dir; after the restructure every script passes its app root (or relies on the
@@ -76,9 +76,9 @@ default which already is the app root for top-level scripts).
 | Script | Common source | `load_config` arg |
 |---|---|---|
 | `radarr/connect/*` (`tag_dvfelmel`, `download_trailer`) | `. "$(dirname "$0")/../../common/scripts_common.sh"` | `"$(dirname "$0")/.."` |
-| `radarr/*` top level | `. "$(dirname "$0")/../common/scripts_common.sh"` | default |
+| `radarr/*` top level (auto quality, profiles, fetch dates) | `. "$(dirname "$0")/../common/scripts_common.sh"` | default |
 | `radarr/research/release_date_stats.sh` | `. "$(dirname "$0")/../../common/scripts_common.sh"` | `"$(dirname "$0")/.."` |
-| `common/tmdb_login.sh` | `. "$(dirname "$0")/scripts_common.sh"` | default |
+| `common/tmdb_login.sh`, `common/push_physical_to_tmdb.sh` | `. "$(dirname "$0")/scripts_common.sh"` | default |
 | `sonarr/connect/*` (post-rebase) | `. "$(dirname "$0")/../../common/scripts_common.sh"` | `"$(dirname "$0")/.."` |
 
 The `scripts.conf.sample` headers ("Move this file to 'scripts.conf' in the
@@ -104,6 +104,17 @@ them. After merge the operator must:
   (shared creds) and `radarr/scripts.conf` (radarr vars).
 - Create `sonarr/scripts.conf` from the new sample when deploying the recap
   script.
+
+## Script namespace audit
+
+Audited every script in `radarr/` for radarr API/host usage. Non-radarr
+scripts move to `common/`:
+
+- `tmdb_login.sh` — no radarr references.
+- `push_physical_to_tmdb.sh` — no radarr references; pure TMDB website Kendo
+  grid API, fed by CLI args or JSON from `fetch_physical_dates.sh`.
+
+All other radarr scripts use `radarr_api_get`, `RADARR_API_URL/KEY` and stay.
 
 ## Branch sequencing
 
