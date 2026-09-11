@@ -45,7 +45,7 @@
 
 # Load shared library and configuration
 . "$(dirname "$0")/../../common/scripts_common.sh"
-load_config
+load_config "$(dirname "$0")/.."
 
 # Trailer-specific defaults
 : "${TMDB_API_KEY:=}"
