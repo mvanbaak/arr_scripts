@@ -110,17 +110,19 @@ season_has_premiere() {
 # Arguments: series_path recap_season
 # Returns 0 if present, 1 if missing
 recap_exists() {
-    local _series_path _recap_season _season_label
+    local _series_path _recap_season _season_label _watched_season _watched_label
 
     _series_path="$1"
     _recap_season="$2"
     _season_label=$(printf '%02d' "${_recap_season}")
+    _watched_season=$((_recap_season + 1))
+    _watched_label=$(printf '%02d' "${_watched_season}")
 
     if ls "${_series_path}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
     then
         return 0
     fi
-    if ls "${_series_path}/Season ${_season_label}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
+    if ls "${_series_path}/Season ${_watched_label}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
     then
         return 0
     fi
@@ -301,7 +303,8 @@ select_best_recaps() {
 # Arguments: yt_key video_name source lang is_original recap_season series_path
 download_recap() {
     local _yt_key _video_name _source _lang _is_original _recap_season _series_path
-    local _season_label _filename _show_dir _season_dir _target _subtitle_flags _cookie_flags
+    local _season_label _watched_season _watched_label _filename _show_dir _season_dir
+    local _target _subtitle_flags _cookie_flags
 
     _yt_key="$1"
     _video_name="$2"
@@ -312,9 +315,11 @@ download_recap() {
     _series_path="$7"
 
     _season_label=$(printf '%02d' "${_recap_season}")
+    _watched_season=$((_recap_season + 1))
+    _watched_label=$(printf '%02d' "${_watched_season}")
     _filename="Recap-S${_season_label}-${_source}-${_lang}.mp4"
     _show_dir="${_series_path}/Other"
-    _season_dir="${_series_path}/Season ${_season_label}/Other"
+    _season_dir="${_series_path}/Season ${_watched_label}/Other"
 
     case "${STORAGE_MODE}" in
         season)
