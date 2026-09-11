@@ -128,7 +128,7 @@ recap_exists() {
 }
 
 # Discover recap videos for a season and write them to a file.
-# Each line: "source|youtube_key|video_name|lang|is_original"
+# Each line: "source|youtube_key|video_name|lang|is_original|tier"
 # Arguments: series_title tmdb_id recap_season output_file
 discover_recaps() {
     local _series_title _tmdb_id _recap_season _output_file
@@ -183,7 +183,7 @@ discover_recaps() {
         get_tmdb_recaps "${_tmdb_id}" "${_recap_season}" "${_lang}" | while IFS='|' read -r _yt_key _video_name _recap_lang _; do
             if [ -n "${_yt_key}" ]
             then
-                printf 'official|%s|%s|%s|%s\n' "${_yt_key}" "${_video_name}" "${_recap_lang:-${_lang}}" "${_is_original}"
+                printf 'official|%s|%s|%s|%s|tmdb\n' "${_yt_key}" "${_video_name}" "${_recap_lang:-${_lang}}" "${_is_original}"
             fi
         done >> "${_output_file}"
     done
@@ -201,7 +201,7 @@ discover_recaps() {
             youtube_search "${_query}" | while IFS='|' read -r _yt_key _video_name; do
                 if [ -n "${_yt_key}" ]
                 then
-                    printf 'official|%s|%s|%s|%s\n' "${_yt_key}" "${_video_name}" "${_lang}" "${_is_original}"
+                    printf 'official|%s|%s|%s|%s|yt\n' "${_yt_key}" "${_video_name}" "${_lang}" "${_is_original}"
                 fi
             done >> "${_output_file}"
         done
@@ -226,7 +226,7 @@ discover_recaps() {
         youtube_search "${_query}" | while IFS='|' read -r _yt_key _video_name; do
             if [ -n "${_yt_key}" ]
             then
-                printf 'fanmade|%s|%s|%s|%s\n' "${_yt_key}" "${_video_name}" "${_lang}" "${_is_original}"
+                printf 'fanmade|%s|%s|%s|%s|fan\n' "${_yt_key}" "${_video_name}" "${_lang}" "${_is_original}"
             fi
         done >> "${_output_file}"
     done
