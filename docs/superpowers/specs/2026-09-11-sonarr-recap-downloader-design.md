@@ -131,4 +131,13 @@ endpoint (`/3/find/{external_id}?external_source=tvdb_id`) maps TVDB → TMDB.
 
 - Fan-made recap download priority/ranking beyond simple "first result".
 - Downloading recaps from streaming platforms (only YouTube via yt-dlp).
-- Season previews / "next season" trailers.
+
+## Future Work (V2)
+
+- **Season trailer/preview download.** The current season's own trailer is
+  typically released right before its premiere, so it is available at trigger
+  time. A `DOWNLOAD_SEASON_TRAILER` config toggle (default off) could fetch it
+  from the same TMDB season videos endpoint (type Trailer/Teaser) with a
+  distinct filename such as `Season{NN}-Trailer-official-en.mp4`. The *next*
+  season's trailer is not available until the current season's finale, so it
+  cannot be fetched at trigger time.
