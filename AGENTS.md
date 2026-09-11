@@ -7,6 +7,7 @@ This repository contains shell scripts and configuration files for Radarr automa
 **Scripts:**
 - `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.
 - `radarr/connect/download_trailer.sh` - Downloads official trailers from TMDB/YouTube for movies in Radarr.
+- `sonarr/connect/download_recap.sh` - Downloads the previous season's recap video when a new series season starts in Sonarr.
 - `common/scripts_common.sh` - Shared library sourced by connect scripts (config loading, executable checks, Radarr API helpers).
 - `radarr/auto_quality_switch.sh` - Switches movies from Remux-only to WebDL profiles when no physical release appears within a statistical threshold.
 - `radarr/auto_quality_switch_reverse.sh` - Switches movies back to Remux-only when physical release dates appear for previously switched movies.
@@ -88,6 +89,23 @@ Event types: `Test`, `MovieFileDelete`, `Download`, `Bulk`
 ```
 
 Event types: `Test`, `MovieAdded`, `Download`, `Bulk`
+
+**Run the recap script in test mode:**
+```bash
+./sonarr/connect/download_recap.sh
+```
+
+**Run in bulk mode (process all series):**
+```bash
+./sonarr/connect/download_recap.sh bulk
+```
+
+**Direct invocation with arguments:**
+```bash
+./sonarr/connect/download_recap.sh <event_type> <series_id> [season_number]
+```
+
+Event types: `Test`, `Download`, `Bulk`
 
 **Run the auto quality switch in dry-run mode:**
 ```bash
@@ -362,6 +380,12 @@ radarr/
   research/
     release_date_stats.sh        # Statistical analysis of web vs physical release dates
 
+sonarr/
+  connect/
+    download_recap.sh       # Season recap downloader for new seasons
+  scripts.conf.sample       # Sample configuration
+  scripts.conf              # Actual configuration (not in git)
+
 docs/
   cookie-extraction.md           # Guide for exporting YouTube cookies for yt-dlp
 ```
@@ -381,6 +405,15 @@ Required executables for `download_trailer.sh` (checked at runtime):
 - cut
 - ffmpeg
 - jq
+- mkdir
+- mktemp
+- tr
+- yt-dlp
+
+Required executables for `download_recap.sh` (checked at runtime):
+- curl
+- jq
+- ln
 - mkdir
 - mktemp
 - tr
