@@ -32,9 +32,3 @@ YT_DLP_COOKIE_FILE=""
 
 # Target container for --recode-video. MP4 ensures H.264+AAC - Direct Play on all devices.
 # YT_DLP_RECODE="mp4"
-
-# Dry-run mode. When true, skips actual yt-dlp download, shows what would happen.
-DRY_RUN="false"
-
-# Debug mode. When true, prints detailed diagnostic messages.
-DEBUG="false"

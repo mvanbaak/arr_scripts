@@ -24,5 +24,5 @@ fi
 cp "${_old}" "${_new}"
 echo "Migrated: ${_old} -> ${_new}" >&2
 echo "" >&2
-echo "Optional: move shared vars (TMDB_API_KEY, YT_DLP_*, AUTOPULSE_*," >&2
-echo "DRY_RUN, DEBUG) to common/scripts.conf for cross-app sharing." >&2
+echo "Optional: move shared vars (TMDB_API_KEY, YT_DLP_*," >&2
+echo "AUTOPULSE_*) to common/scripts.conf for cross-app sharing." >&2

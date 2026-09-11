@@ -17,8 +17,8 @@ The old file is kept as backup.
 Scripts will still work with the old path via a temporary fallback, but
 **this fallback will be removed in a future update** — migrate soon.
 
-Optional: move shared settings (`TMDB_API_KEY`, `YT_DLP_*`, `AUTOPULSE_*`,
-`DRY_RUN`, `DEBUG`) to `common/scripts.conf` for cross-app sharing.
+Optional: move shared settings (`TMDB_API_KEY`, `YT_DLP_*`, `AUTOPULSE_*`)
+to `common/scripts.conf` for cross-app sharing.
 
 ### Scripts
 
