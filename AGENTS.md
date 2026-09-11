@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This repository contains shell scripts and configuration files for Radarr automation.
+This repository contains shell scripts and configuration files for Radarr and Sonarr automation.
 
 **Scripts:**
 - `radarr/connect/tag_dvfelmel.sh` - Tags movies with `fel` or `mel` based on Dolby Vision Enhancement Layer detection.

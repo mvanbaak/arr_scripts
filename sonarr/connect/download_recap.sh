@@ -430,6 +430,11 @@ process_series_backfill() {
     _seasons=$(sonarr_api_get "episode?seriesId=${_series_id}" | \
         jq -r '[.[] | select(.hasFile == true and .seasonNumber >= 2)] | map(.seasonNumber) | unique[]')
 
+    _recaps_temp=$(mktemp)
+    # shellcheck disable=SC2064
+    trap 'rm -f "${_recaps_temp}"; exit 130' INT TERM
+    trap 'rm -f "${_recaps_temp}"' EXIT
+
     for _season in ${_seasons}
     do
         _recap_season=$((_season - 1))
@@ -438,11 +443,6 @@ process_series_backfill() {
             debug_log "Recap for season ${_recap_season} already exists, skipping"
             continue
         fi
-
-        _recaps_temp=$(mktemp)
-        # shellcheck disable=SC2064
-        trap 'rm -f "${_recaps_temp}"; exit 130' INT TERM
-        trap 'rm -f "${_recaps_temp}"' EXIT
 
         discover_recaps "${_series_title}" "${_tmdb_id}" "${_recap_season}" "${_recaps_temp}"
 
@@ -465,10 +465,11 @@ process_series_backfill() {
             done < "${_recaps_temp}"
         fi
 
-        rm -f "${_recaps_temp}"
-        trap - INT TERM EXIT
         sleep 1
     done
+
+    rm -f "${_recaps_temp}"
+    trap - INT TERM EXIT
 
     [ "${_has_new}" = "true" ] && [ "${DRY_RUN}" != "true" ] && notify_autopulse "${_series_path}"
 }
@@ -503,6 +504,22 @@ then
     echo "ERROR: TMDB_API_KEY is not set. Configure it in sonarr/connect/scripts.conf" >&2
     exit 1
 fi
+
+case "${FAN_MADE}" in
+    never|fallback|always) ;;
+    *)
+        echo "ERROR: Invalid FAN_MADE value: ${FAN_MADE}. Must be never, fallback, or always." >&2
+        exit 1
+        ;;
+esac
+
+case "${STORAGE_MODE}" in
+    show|season|both) ;;
+    *)
+        echo "ERROR: Invalid STORAGE_MODE value: ${STORAGE_MODE}. Must be show, season, or both." >&2
+        exit 1
+        ;;
+esac
 
 # Parse optional flags before positional args
 while [ $# -gt 0 ]; do
