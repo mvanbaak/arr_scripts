@@ -193,10 +193,9 @@ discover_recaps() {
     # Step 2: YouTube official recap search if TMDB found nothing
     if [ "${_official_found}" = "false" ]
     then
-        for _lang in ${_desired_langs}
+        for _lang in ${_series_lang}
         do
-            _is_original="false"
-            [ "${_lang}" = "${_series_lang}" ] && _is_original="true"
+            _is_original="true"
             _query="${_series_title} season ${_recap_season} recap official ${_lang}"
             youtube_search "${_query}" | while IFS='|' read -r _yt_key _video_name; do
                 if [ -n "${_yt_key}" ]
@@ -218,10 +217,9 @@ discover_recaps() {
             ;;
     esac
 
-    for _lang in ${_desired_langs}
+    for _lang in ${_series_lang}
     do
-        _is_original="false"
-        [ "${_lang}" = "${_series_lang}" ] && _is_original="true"
+        _is_original="true"
         _query="${_series_title} season ${_recap_season} recap ${_lang}"
         youtube_search "${_query}" | while IFS='|' read -r _yt_key _video_name; do
             if [ -n "${_yt_key}" ]
