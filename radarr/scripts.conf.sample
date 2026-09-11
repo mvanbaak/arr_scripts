@@ -36,3 +36,11 @@ TRAILER_SUBTITLE_LANGS="pt-BR"
 
 # Ignore list: comma-separated movie IDs to exclude from quality switches
 # IGNORE_IDS=""
+
+# Dry-run mode. When true, skips actual changes, shows what would happen.
+# Override per-invocation with --dry-run flag.
+# DRY_RUN="false"
+
+# Debug mode. When true, prints detailed diagnostic messages.
+# Override per-invocation with --debug flag.
+# DEBUG="false"
