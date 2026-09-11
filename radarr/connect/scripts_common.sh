@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Dont warn on the word `local`
-# shellcheck disable=SC3043
+# Dont warn on the word `local` or non-constant source
+# shellcheck disable=SC1090,SC3043
 
 # Shared library for arr_scripts connect scripts.
 # Sourced by tag_dvfelmel.sh, download_trailer.sh, and auto quality switch scripts.
@@ -10,12 +10,21 @@
 
 load_config() {
     # Read config from file if found.
-    # Accepts optional config directory as $1.
+    # Accepts optional app config directory as $1.
     # Defaults to directory of the invoking script ($0).
+    # Sources the shared common/scripts.conf first, then the app config
+    # ($1/scripts.conf), so per-app values override shared ones.
     # NOTE: sourcing executes arbitrary shell from scripts.conf; acceptable because
     # the file is gitignored, user-owned, and only readable by the script operator.
-    local _config_dir
+    local _config_dir _app_dir _common_conf
     _config_dir="${1:-$(dirname "$0")}"
+    _app_dir=$(cd "${_config_dir}" 2>/dev/null && pwd)
+
+    _common_conf="$(dirname "${_app_dir}")/common/scripts.conf"
+    if [ -n "${_app_dir}" ] && [ -f "${_common_conf}" ]
+    then
+        . "${_common_conf}"
+    fi
 
     if [ -f "${_config_dir}/scripts.conf" ]
     then
