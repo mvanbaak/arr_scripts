@@ -19,6 +19,15 @@ TRAILER_SUBTITLE_LANGS="pt-BR"
 # SOURCE_PROFILE_NAME="Remux-2160p"
 # TARGET_PROFILE_NAME="WebDL-2160p"
 
+# Tag used to track movies switched by the auto quality switch script.
+# AUTO_SWITCH_TAG="auto-switched"
+
+# Max movies to switch per run. 0 = unlimited.
+# MAX_SWITCH_PER_RUN="0"
+
+# Trigger a search after switching profiles.
+# TRIGGER_SEARCH="true"
+
 # Percentile threshold for web->physical gap (0.0-1.0).
 # P95 = wait until 95% of physical releases have appeared.
 # P_VALUE="0.95"
@@ -31,11 +40,28 @@ TRAILER_SUBTITLE_LANGS="pt-BR"
 # FALLBACK_THRESHOLD="365"
 
 # Clamping bounds for computed threshold.
-# MAX_THRESHOLD_DAYS="1095"
-# MIN_THRESHOLD_DAYS="30"
+# MAX_THRESHOLD="730"
+# MIN_THRESHOLD="90"
 
-# Ignore list: comma-separated movie IDs to exclude from quality switches
-# IGNORE_IDS=""
+# --- fix_quality_profiles.sh settings (optional) ---
+# Wrong/correct quality profile names.
+# WRONG_PROFILE_NAME="[SQP] SQP-3 (Audio)"
+# CORRECT_PROFILE_NAME="SQP-3-RemuxOnly"
+
+# --- fetch_physical_dates.sh settings (optional) ---
+# Country filter (ISO 3166-1 alpha-2) for Blu-ray.com lookups.
+# BLURAY_COUNTRY="US"
+# Rate limit in seconds between requests.
+# BLURAY_RATE_LIMIT="0.5"
+# Warn when more than this many movies are scanned without a limit.
+# BLURAY_MAX_MOVIES_WARN="50"
+
+# --- tag_dvfelmel.sh settings (optional) ---
+# Tag labels for Dolby Vision types.
+# RADARR_TAG_FEL="fel"
+# RADARR_TAG_MEL="mel"
+# Log file path. 'none' logs to stdout/stderr.
+# LOG_FILE="none"
 
 # Dry-run mode. When true, skips actual changes, shows what would happen.
 # Also available in common/scripts.conf. Override per-invocation with --dry-run flag.
