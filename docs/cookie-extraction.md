@@ -4,7 +4,7 @@ This guide covers extracting YouTube cookies for use with the trailer download s
 
 ## Configuration
 
-Set the `YT_DLP_COOKIE_FILE` variable in `scripts.conf` to the path of your cookie file:
+Set the `YT_DLP_COOKIE_FILE` variable in `common/scripts.conf` to the path of your cookie file:
 
 ```sh
 YT_DLP_COOKIE_FILE="/path/to/cookies.txt"
@@ -96,7 +96,7 @@ If running Radarr in a Docker container:
 1. Extract cookies on a desktop machine using Method 1 (browser extension)
 2. Copy the resulting `.txt` file to a path accessible inside the container
 3. Mount the file as a volume (e.g., `-v /host/path/cookies.txt:/config/cookies.txt:ro`)
-4. Set `YT_DLP_COOKIE_FILE=/config/cookies.txt` in your `scripts.conf`
+4. Set `YT_DLP_COOKIE_FILE=/config/cookies.txt` in your `common/scripts.conf`
 
 Browser-based extraction (Method 2) will not work inside a Docker container as there is no browser installed.
 

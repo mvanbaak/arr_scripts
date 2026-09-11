@@ -1,0 +1,72 @@
+# SAMPLE configuration file - Radarr settings.
+# Move this file to 'scripts.conf' in the same directory (radarr/).
+# These values override the shared settings from common/scripts.conf.
+
+# Radarr info used to talk to its api
+RADARR_API_URL="http://ip.of.radarr:7878/api/v3"
+RADARR_API_KEY="your_radarr_api_key"
+
+# Trailer languages to download (comma-separated, ISO 639-1 with optional region)
+# "original" is a special value that resolves to the movie's original language at runtime
+TRAILER_LANGUAGES="original,pt-BR"
+
+# Subtitle languages to download for original-language trailers (comma-separated)
+# Uses yt-dlp's --sub-langs. Empty value disables subtitles.
+TRAILER_SUBTITLE_LANGS="pt-BR"
+
+# --- Auto Quality Switch settings (optional) ---
+# Quality profile names for the auto quality switch script.
+# SOURCE_PROFILE_NAME="Remux-2160p"
+# TARGET_PROFILE_NAME="WebDL-2160p"
+
+# Tag used to track movies switched by the auto quality switch script.
+# AUTO_SWITCH_TAG="auto-switched"
+
+# Max movies to switch per run. 0 = unlimited.
+# MAX_SWITCH_PER_RUN="0"
+
+# Trigger a search after switching profiles.
+# TRIGGER_SEARCH="true"
+
+# Percentile threshold for web->physical gap (0.0-1.0).
+# P95 = wait until 95% of physical releases have appeared.
+# P_VALUE="0.95"
+
+# Minimum sample of movies with both dates needed to compute threshold.
+# Below this, FALLBACK_THRESHOLD is used.
+# MIN_SAMPLE="30"
+
+# Hardcoded fallback threshold (days) when sample is too small.
+# FALLBACK_THRESHOLD="365"
+
+# Clamping bounds for computed threshold.
+# MAX_THRESHOLD="730"
+# MIN_THRESHOLD="90"
+
+# --- fix_quality_profiles.sh settings (optional) ---
+# Wrong/correct quality profile names.
+# WRONG_PROFILE_NAME="[SQP] SQP-3 (Audio)"
+# CORRECT_PROFILE_NAME="SQP-3-RemuxOnly"
+
+# --- fetch_physical_dates.sh settings (optional) ---
+# Country filter (ISO 3166-1 alpha-2) for Blu-ray.com lookups.
+# BLURAY_COUNTRY="US"
+# Rate limit in seconds between requests.
+# BLURAY_RATE_LIMIT="0.5"
+# Warn when more than this many movies are scanned without a limit.
+# BLURAY_MAX_MOVIES_WARN="50"
+
+# --- tag_dvfelmel.sh settings (optional) ---
+# Tag labels for Dolby Vision types.
+# RADARR_TAG_FEL="fel"
+# RADARR_TAG_MEL="mel"
+# Log file path. 'none' logs to stdout/stderr.
+# LOG_FILE="none"
+
+# Dry-run mode. When true, skips actual changes, shows what would happen.
+# Also available in common/scripts.conf. Override per-invocation with --dry-run flag.
+# DRY_RUN="false"
+
+# Debug mode. When true, prints detailed diagnostic messages.
+# Also available in common/scripts.conf. Override per-invocation with --debug flag.
+# DEBUG="false"

@@ -1,0 +1,42 @@
+# SAMPLE configuration file - shared settings (app-independent).
+# Move this file to 'scripts.conf' in the same directory (common/).
+# Sourced by every script BEFORE the per-app config
+# (radarr/scripts.conf or sonarr/scripts.conf), so per-app values override.
+
+# TMDB API key for trailer, recap, and release-date lookups
+# Get one at https://www.themoviedb.org/settings/api
+TMDB_API_KEY="your_tmdb_api_key"
+
+# TMDB Website credentials (for tmdb_login.sh).
+# Required for push_physical_to_tmdb.sh to authenticate with TMDB website.
+TMDB_USERNAME=""
+TMDB_PASSWORD=""
+
+# Path to Netscape-format cookie file for TMDB website authentication.
+# Used by push_physical_to_tmdb.sh. Default: ~/.tmdb_cookies.txt
+# TMDB_COOKIE_FILE=""
+
+# Path to a Netscape-format cookie file for yt-dlp YouTube authentication.
+# Optional - leave empty to download without authentication.
+# See docs/cookie-extraction.md for instructions on exporting cookies from your browser.
+YT_DLP_COOKIE_FILE=""
+
+# Autopulse notification (optional). Uncomment and set URL to enable Plex scan after trailer download.
+# AUTOPULSE_URL="http://ip:3030"
+# AUTOPULSE_TRIGGER="manual"
+# AUTOPULSE_AUTH_USER="username"
+# AUTOPULSE_AUTH_PASS="password"
+
+# yt-dlp format selector. Default gets best quality then recodes to MP4 for compatibility.
+# YT_DLP_FORMAT="bv*+ba/b"
+
+# Target container for --recode-video. MP4 ensures H.264+AAC - Direct Play on all devices.
+# YT_DLP_RECODE="mp4"
+
+# Dry-run mode. When true, skips actual changes, shows what would happen.
+# Override per-invocation with --dry-run flag.
+DRY_RUN="false"
+
+# Debug mode. When true, prints detailed diagnostic messages.
+# Override per-invocation with --debug flag.
+DEBUG="false"

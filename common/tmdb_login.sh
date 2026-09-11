@@ -9,8 +9,8 @@
 # Version 0.1.0 (Released 2026-07-27)
 #   * Initial implementation
 
-. "$(dirname "$0")/connect/scripts_common.sh"
-load_config "$(dirname "$0")/connect"
+. "$(dirname "$0")/scripts_common.sh"
+load_config "$(dirname "$0")"
 
 : "${TMDB_USERNAME:=}"
 : "${TMDB_PASSWORD:=}"
@@ -45,7 +45,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "${TMDB_USERNAME}" ] || [ -z "${TMDB_PASSWORD}" ]; then
-    echo "ERROR: TMDB_USERNAME and TMDB_PASSWORD must be set in scripts.conf" >&2
+    echo "ERROR: TMDB_USERNAME and TMDB_PASSWORD must be set in common/scripts.conf" >&2
     exit 1
 fi
 
