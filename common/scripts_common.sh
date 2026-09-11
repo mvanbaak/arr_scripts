@@ -14,21 +14,40 @@ load_config() {
     # Defaults to directory of the invoking script ($0).
     # Sources the shared common/scripts.conf first, then the app config
     # ($1/scripts.conf), so per-app values override shared ones.
+    # Migration fallback: if neither new config exists, checks old
+    # radarr/connect/scripts.conf path. This fallback will be removed
+    # in a future update — migrate with radarr/migrate_config.sh.
     # NOTE: sourcing executes arbitrary shell from scripts.conf; acceptable because
     # the file is gitignored, user-owned, and only readable by the script operator.
-    local _config_dir _app_dir _common_conf
+    local _config_dir _app_dir _common_conf _loaded _old_conf
     _config_dir="${1:-$(dirname "$0")}"
     _app_dir=$(cd "${_config_dir}" 2>/dev/null && pwd)
 
     _common_conf="$(dirname "${_app_dir}")/common/scripts.conf"
+    _loaded=false
     if [ -n "${_app_dir}" ] && [ -f "${_common_conf}" ]
     then
         . "${_common_conf}"
+        _loaded=true
     fi
 
     if [ -f "${_config_dir}/scripts.conf" ]
     then
         . "${_config_dir}/scripts.conf"
+        _loaded=true
+    fi
+
+    # Migration fallback: old connect/scripts.conf path
+    if [ "${_loaded}" = false ]
+    then
+        _old_conf="${_app_dir}/connect/scripts.conf"
+        if [ -f "${_old_conf}" ]
+        then
+            echo "WARNING: Config at old path '${_old_conf}'." >&2
+            echo "  Migrate: cp '${_old_conf}' '${_app_dir}/scripts.conf" >&2
+            echo "  Fallback will be removed in a future update." >&2
+            . "${_old_conf}"
+        fi
     fi
 
     # Set defaults
