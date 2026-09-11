@@ -34,6 +34,7 @@ load_config "$(dirname "$0")/.."
 : "${RECAP_SUBTITLE_LANGS:=pt-BR}"
 : "${FAN_MADE:=fallback}"
 : "${STORAGE_MODE:=show}"
+: "${RECAP_SEARCH_COUNT:=10}"
 : "${DRY_RUN:=false}"
 : "${DEBUG:=false}"
 
@@ -50,7 +51,7 @@ EPISODE_NUMBERS="${sonarr_episodefile_episodenumbers:-""}"
 # Arguments: tmdb_id season_number language
 # Outputs: lines of "youtube_key|video_name|iso_639_1" for each matching recap
 get_tmdb_recaps() {
-    local _tmdb_id _season _lang _response
+    local _tmdb_id _season _lang _response _matches _count
 
     _tmdb_id="$1"
     _season="$2"
@@ -71,22 +72,27 @@ get_tmdb_recaps() {
         return 1
     fi
 
-    printf '%s' "${_response}" | \
-    jq -r '.results // empty | .[] | select(.type == "Recap" and .official == true and .site == "YouTube") | "\(.key)|\(.name | gsub("\\|"; "_"))|\(.iso_639_1 // empty)"'
+    _matches=$(printf '%s' "${_response}" | \
+        jq -r '.results // empty | .[] | select(.type == "Recap" and .official == true and .site == "YouTube") | "\(.key)|\(.name | gsub("\\|"; "_"))|\(.iso_639_1 // empty)"')
+    _count=$(printf '%s\n' "${_matches}" | grep -c '|' 2>/dev/null || true)
+    debug_log "TMDB season ${_season} videos (${_lang}): ${_count} recap matches"
+    printf '%s\n' "${_matches}"
 }
 
 # Search YouTube for recap videos using yt-dlp
 # Arguments: search_query
 # Outputs: lines of "youtube_key|video_title"
 youtube_search() {
-    local _query _results
+    local _query _results _count
 
     _query="$1"
     _results=$(yt-dlp \
         --flat-playlist \
         -J \
-        "ytsearch5:${_query}" 2>/dev/null | \
+        "ytsearch${RECAP_SEARCH_COUNT}:${_query}" 2>/dev/null | \
         jq -r '.entries[] | select(.id != null) | "\(.id)|\(.title | gsub("\\|"; "_"))"')
+    _count=$(printf '%s\n' "${_results}" | grep -c '|' 2>/dev/null || true)
+    debug_log "YouTube search '${_query}': ${_count} results"
     printf '%s\n' "${_results}"
 }
 
