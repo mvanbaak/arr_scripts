@@ -22,6 +22,7 @@
 # Version 0.4.0 (Released 2026-09-11)
 #   * Move shared defaults (TMDB, yt-dlp, autopulse) to scripts_common.sh
 #   * Move lang_to_iso639_1 and notify_autopulse to scripts_common.sh
+#   * Merge to MP4 without re-encoding; default format caps at 1080p H.264
 #
 # Version 0.3.0 (Released 2026-07-01)
 #   * Fix autopulse notification: use GET with 'path' query param
@@ -144,7 +145,7 @@ download_trailer() {
     if [ "${DRY_RUN}" = "true" ]
     then
         echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.mp4" >&2
-        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --recode-video \"${YT_DLP_RECODE}\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
+        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --merge-output-format mp4 ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
         return 2
     fi
 
@@ -162,7 +163,7 @@ download_trailer() {
         --download-archive "${_trailers_dir}/.archive" \
         -o "${_trailers_dir}/${_sanitized_name}.%(ext)s" \
         -f "${YT_DLP_FORMAT}" \
-        --recode-video "${YT_DLP_RECODE}" \
+        --merge-output-format mp4 \
         ${_subtitle_flags} \
         ${_cookie_flags} \
         "https://www.youtube.com/watch?v=${_yt_key}"

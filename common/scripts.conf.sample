@@ -27,11 +27,10 @@ YT_DLP_COOKIE_FILE=""
 # AUTOPULSE_AUTH_USER="username"
 # AUTOPULSE_AUTH_PASS="password"
 
-# yt-dlp format selector. Default gets best quality then recodes to MP4 for compatibility.
-# YT_DLP_FORMAT="bv*+ba/b"
-
-# Target container for --recode-video. MP4 ensures H.264+AAC - Direct Play on all devices.
-# YT_DLP_RECODE="mp4"
+# yt-dlp format selector. Default picks the best H.264 (avc1) video at 1080p or
+# below plus AAC audio, merged to MP4 without re-encoding. This avoids pulling
+# 4K/AV1 sources and transcoding them on older hardware.
+# YT_DLP_FORMAT="bv*[height<=1080][vcodec^=avc1]+ba[acodec^=mp4a]/b[height<=1080][vcodec^=avc1]"
 
 # Dry-run mode. When true, skips actual changes, shows what would happen.
 # Override per-invocation with --dry-run flag.

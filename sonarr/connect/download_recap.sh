@@ -24,6 +24,7 @@
 #   * Filter junk titles (trailers, reactions, soundtracks, episode recaps)
 #   * Configurable search width via RECAP_SEARCH_COUNT
 #   * Richer debug output (queries, counts, selection rationale)
+#   * Merge to MP4 without re-encoding; default format caps at 1080p H.264
 #
 # Version 0.1.0 (Released 2026-09-11)
 #   * Initial implementation
@@ -366,7 +367,7 @@ download_recap() {
     if [ "${DRY_RUN}" = "true" ]
     then
         echo "DRY-RUN: Download '${_video_name}' (${_source}/${_lang}) → ${_target}" >&2
-        echo "DRY-RUN: yt-dlp -o \"${_target}\" -f \"${YT_DLP_FORMAT}\" --recode-video \"${YT_DLP_RECODE}\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
+        echo "DRY-RUN: yt-dlp -o \"${_target}\" -f \"${YT_DLP_FORMAT}\" --merge-output-format mp4 ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
         return 2
     fi
 
@@ -383,7 +384,7 @@ download_recap() {
     yt-dlp \
         -o "${_target}" \
         -f "${YT_DLP_FORMAT}" \
-        --recode-video "${YT_DLP_RECODE}" \
+        --merge-output-format mp4 \
         ${_subtitle_flags} \
         ${_cookie_flags} \
         "https://www.youtube.com/watch?v=${_yt_key}"
