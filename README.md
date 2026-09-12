@@ -391,8 +391,8 @@ Recaps follow the Plex naming scheme for TV extras and are stored in an `Other/`
 directory at the show level, season level, or both (hardlinked to save space)
 via the `STORAGE_MODE` config. A recap of season N is stored in the Season N+1
 folder (the watched season). Filenames use the video title for user-friendly
-Plex names, prefixed with the recapped season and tagged with source/language
-(e.g. `S05 - Season 5 Recap (official-en).mp4`).
+Plex names, with a recap-season prefix and source/language tags
+(e.g. `S05 Recap - Season 5 Recap (official-en).mp4`).
 
 By default it downloads recaps in the series' original language and Brazilian
 Portuguese (pt-BR), with Brazilian Portuguese subtitles for original-language
