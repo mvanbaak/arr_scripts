@@ -22,6 +22,7 @@
 # Version 0.4.0 (Released 2026-09-11)
 #   * Move shared defaults (TMDB, yt-dlp, autopulse) to scripts_common.sh
 #   * Move lang_to_iso639_1 and notify_autopulse to scripts_common.sh
+#   * Move sanitize_filename to scripts_common.sh
 #   * Merge to MP4 without re-encoding; default format caps at 1080p H.264
 #
 # Version 0.3.0 (Released 2026-07-01)
@@ -97,18 +98,6 @@ get_tmdb_trailers() {
 
 # Sanitize a string for use as a filename
 # Removes/replaces characters invalid on Linux/macOS/Windows
-# Truncates to 100 characters
-sanitize_filename() {
-    local _name
-
-    _name="$1"
-    # Replace invalid characters with underscores
-    _name=$(printf '%s' "${_name}" | tr '/\\:*?"<>|%' '_')
-    # Truncate to 100 chars
-    _name=$(printf '%s' "${_name}" | cut -c1-100)
-    printf '%s' "${_name}"
-}
-
 # Download a single trailer via yt-dlp
 # Arguments: youtube_key video_name lang_code is_original_lang movie_path
 download_trailer() {

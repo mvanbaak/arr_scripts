@@ -6,8 +6,8 @@
 # Sourced by tag_dvfelmel.sh, download_trailer.sh, and auto quality switch scripts.
 # Provides: load_config, check_needed_executables, radarr_api_get, sonarr_api_get,
 #           get_movie_info, get_series_info, debug_log, lang_to_iso639_1,
-#           notify_autopulse, get_tag_id_by_label, create_tag, movie_has_tag,
-#           add_tag_to_movie, remove_tag_from_movie, _resolve_profile_id
+#           sanitize_filename, notify_autopulse, get_tag_id_by_label, create_tag,
+#           movie_has_tag, add_tag_to_movie, remove_tag_from_movie, _resolve_profile_id
 
 load_config() {
     # Read config from file if found.
@@ -185,6 +185,17 @@ lang_to_iso639_1() {
         Estonian|est) echo "et" ;;
         *) echo "" ;;
     esac
+}
+
+# Sanitize a name for use as a filename. Replaces invalid characters with
+# underscores and truncates to 100 characters.
+sanitize_filename() {
+    local _name
+
+    _name="$1"
+    _name=$(printf '%s' "${_name}" | tr '/\\:*?"<>|%' '_')
+    _name=$(printf '%s' "${_name}" | cut -c1-100)
+    printf '%s' "${_name}"
 }
 
 notify_autopulse() {

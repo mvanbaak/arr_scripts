@@ -10,6 +10,7 @@
 #
 # Requirements:
 # * curl
+# * cut
 # * jq
 # * ln
 # * mkdir
@@ -25,6 +26,7 @@
 #   * Configurable search width via RECAP_SEARCH_COUNT
 #   * Richer debug output (queries, counts, selection rationale)
 #   * Merge to MP4 without re-encoding; default format caps at 1080p H.264
+#   * Human-readable filenames (S0N - video title)
 #
 # Version 0.1.0 (Released 2026-09-11)
 #   * Initial implementation
@@ -127,11 +129,13 @@ recap_exists() {
     _watched_season=$((_recap_season + 1))
     _watched_label=$(printf '%02d' "${_watched_season}")
 
-    if ls "${_series_path}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
+    if ls "${_series_path}/Other/S${_season_label} - "*.mp4 >/dev/null 2>&1 || \
+       ls "${_series_path}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
     then
         return 0
     fi
-    if ls "${_series_path}/Season ${_watched_label}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
+    if ls "${_series_path}/Season ${_watched_label}/Other/S${_season_label} - "*.mp4 >/dev/null 2>&1 || \
+       ls "${_series_path}/Season ${_watched_label}/Other/Recap-S${_season_label}-"*.mp4 >/dev/null 2>&1
     then
         return 0
     fi
@@ -326,7 +330,7 @@ download_recap() {
     _season_label=$(printf '%02d' "${_recap_season}")
     _watched_season=$((_recap_season + 1))
     _watched_label=$(printf '%02d' "${_watched_season}")
-    _filename="Recap-S${_season_label}-${_source}-${_lang}.mp4"
+    _filename="S${_season_label} - $(sanitize_filename "${_video_name}").mp4"
     _show_dir="${_series_path}/Other"
     _season_dir="${_series_path}/Season ${_watched_label}/Other"
 
@@ -608,7 +612,7 @@ EOF
 }
 
 # main script flow
-check_needed_executables "curl jq ln mkdir mktemp tr yt-dlp"
+check_needed_executables "curl cut jq ln mkdir mktemp tr yt-dlp"
 
 if [ -z "${TMDB_API_KEY}" ]
 then

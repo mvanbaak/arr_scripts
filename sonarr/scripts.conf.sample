@@ -21,9 +21,10 @@ RECAP_SUBTITLE_LANGS="pt-BR"
 FAN_MADE="fallback"
 
 # Where to store recaps following the Plex extras naming scheme.
-# A recap of season N lands in the Season N+1 folder (the season being watched):
-#   show   - ShowName (Year)/Other/Recap-S01-official-en.mp4
-#   season - ShowName (Year)/Season 02/Other/Recap-S01-official-en.mp4
+# A recap of season N lands in the Season N+1 folder (the season being watched).
+# Filenames use the video title for user-friendly Plex names, e.g. S05 - Season 5 Recap.mp4
+#   show   - ShowName (Year)/Other/S01 - Catch up on Season 1.mp4
+#   season - ShowName (Year)/Season 02/Other/S01 - Catch up on Season 1.mp4
 #   both   - show level, hardlinked (or copied) into the season folder
 STORAGE_MODE="show"
 
