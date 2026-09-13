@@ -19,6 +19,12 @@
 #
 # Script based on the tag_dvfelmel.sh structure by Michiel van Baak Jansen
 #
+# Version 0.4.0 (Released 2026-09-11)
+#   * Move shared defaults (TMDB, yt-dlp, autopulse) to scripts_common.sh
+#   * Move lang_to_iso639_1 and notify_autopulse to scripts_common.sh
+#   * Move sanitize_filename to scripts_common.sh
+#   * Merge to MP4 without re-encoding; default format caps at 1080p H.264
+#
 # Version 0.3.0 (Released 2026-07-01)
 #   * Fix autopulse notification: use GET with 'path' query param
 #   * Add curl exit code to autopulse failure warning for easier diagnosis
@@ -48,16 +54,8 @@
 load_config "$(dirname "$0")/.."
 
 # Trailer-specific defaults
-: "${TMDB_API_KEY:=}"
 : "${TRAILER_LANGUAGES:=original,pt-BR}"
 : "${TRAILER_SUBTITLE_LANGS:=pt-BR}"
-: "${YT_DLP_COOKIE_FILE:=}"
-: "${YT_DLP_FORMAT:=bv*+ba/b}"
-: "${YT_DLP_RECODE:=mp4}"
-: "${AUTOPULSE_URL:=}"
-: "${AUTOPULSE_TRIGGER:=manual}"
-: "${AUTOPULSE_AUTH_USER:=}"
-: "${AUTOPULSE_AUTH_PASS:=}"
 : "${DRY_RUN:=false}"
 : "${DEBUG:=false}"
 
@@ -68,55 +66,6 @@ load_config "$(dirname "$0")/.."
 EVENT_TYPE="${radarr_eventtype:-"Test"}"
 MOVIE_ID="${radarr_movie_id:-0}"
 MOVIE_PATH="${radarr_movie_path:-""}"
-
-# Map ISO 639-2 (3-letter) to ISO 639-1 (2-letter) for common languages
-lang_to_iso639_1() {
-    case "$1" in
-        English|eng) echo "en" ;;
-        Portuguese|por) echo "pt" ;;
-        Japanese|jpn) echo "ja" ;;
-        French|fra|fre) echo "fr" ;;
-        German|deu|ger) echo "de" ;;
-        Italian|ita) echo "it" ;;
-        Spanish|spa) echo "es" ;;
-        Korean|kor) echo "ko" ;;
-        Chinese|chi|zho) echo "zh" ;;
-        Russian|rus) echo "ru" ;;
-        Hindi|hin) echo "hi" ;;
-        Arabic|ara) echo "ar" ;;
-        Turkish|tur) echo "tr" ;;
-        Dutch|nld|dut) echo "nl" ;;
-        Swedish|swe) echo "sv" ;;
-        Norwegian|nor) echo "no" ;;
-        Danish|dan) echo "da" ;;
-        Finnish|fin) echo "fi" ;;
-        Polish|pol) echo "pl" ;;
-        Greek|ell|gre) echo "el" ;;
-        Hebrew|heb) echo "he" ;;
-        Thai|tha) echo "th" ;;
-        Vietnamese|vie) echo "vi" ;;
-        Indonesian|ind) echo "id" ;;
-        Malay|mal) echo "ml" ;;
-        Tamil|tam) echo "ta" ;;
-        Telugu|tel) echo "te" ;;
-        Punjabi|pan) echo "pa" ;;
-        Persian|fas|per) echo "fa" ;;
-        Catalan|cat) echo "ca" ;;
-        Czech|cze|ces) echo "cs" ;;
-        Hungarian|hun) echo "hu" ;;
-        Romanian|ron|rum) echo "ro" ;;
-        Ukrainian|ukr) echo "uk" ;;
-        Bulgarian|bul) echo "bg" ;;
-        Croatian|hrv) echo "hr" ;;
-        Serbian|srp) echo "sr" ;;
-        Slovak|slk|slo) echo "sk" ;;
-        Slovenian|slv) echo "sl" ;;
-        Latvian|lav) echo "lv" ;;
-        Lithuanian|lit) echo "lt" ;;
-        Estonian|est) echo "et" ;;
-        *) echo "" ;;
-    esac
-}
 
 # Query TMDB for official YouTube trailers for a movie
 # Arguments: tmdb_id language_code
@@ -149,18 +98,6 @@ get_tmdb_trailers() {
 
 # Sanitize a string for use as a filename
 # Removes/replaces characters invalid on Linux/macOS/Windows
-# Truncates to 100 characters
-sanitize_filename() {
-    local _name
-
-    _name="$1"
-    # Replace invalid characters with underscores
-    _name=$(printf '%s' "${_name}" | tr '/\\:*?"<>|%' '_')
-    # Truncate to 100 chars
-    _name=$(printf '%s' "${_name}" | cut -c1-100)
-    printf '%s' "${_name}"
-}
-
 # Download a single trailer via yt-dlp
 # Arguments: youtube_key video_name lang_code is_original_lang movie_path
 download_trailer() {
@@ -197,7 +134,7 @@ download_trailer() {
     if [ "${DRY_RUN}" = "true" ]
     then
         echo "DRY-RUN: Download '${_video_name}' (${_lang}) → ${_trailers_dir}/${_sanitized_name}.mp4" >&2
-        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --recode-video \"${YT_DLP_RECODE}\" ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
+        echo "DRY-RUN: yt-dlp --download-archive \"${_trailers_dir}/.archive\" -o \"${_trailers_dir}/${_sanitized_name}.%(ext)s\" -f \"${YT_DLP_FORMAT}\" --merge-output-format mp4 ${_subtitle_flags} ${_cookie_flags} \"https://www.youtube.com/watch?v=${_yt_key}\"" >&2
         return 2
     fi
 
@@ -215,7 +152,7 @@ download_trailer() {
         --download-archive "${_trailers_dir}/.archive" \
         -o "${_trailers_dir}/${_sanitized_name}.%(ext)s" \
         -f "${YT_DLP_FORMAT}" \
-        --recode-video "${YT_DLP_RECODE}" \
+        --merge-output-format mp4 \
         ${_subtitle_flags} \
         ${_cookie_flags} \
         "https://www.youtube.com/watch?v=${_yt_key}"
@@ -389,27 +326,6 @@ process_all_movies() {
     done <<EOF
 ${_movie_list}
 EOF
-}
-
-notify_autopulse() {
-    [ -z "${AUTOPULSE_URL}" ] && return 0
-    local _path _url _auth _response
-    _path="$1"
-    _url="${AUTOPULSE_URL}/triggers/${AUTOPULSE_TRIGGER}"
-    _auth=""
-    [ -n "${AUTOPULSE_AUTH_USER}" ] && _auth="-u ${AUTOPULSE_AUTH_USER}:${AUTOPULSE_AUTH_PASS}"
-    debug_log "Notifying autopulse: ${_path}"
-    # shellcheck disable=SC2086
-    _response=$(curl -s -w "\n%{http_code}" ${_auth} --get \
-        --data-urlencode "path=${_path}" \
-        "${_url}")
-    _curl_rc=$?
-    _http_code=$(printf '%s' "${_response}" | tail -1)
-    _body=$(printf '%s' "${_response}" | sed '$d')
-    case "${_http_code}" in
-        2*) debug_log "Autopulse responded: ${_http_code}" ;;
-        *) echo "WARN: Autopulse notification failed (HTTP ${_http_code}, curl exit ${_curl_rc}): ${_body}" >&2 ;;
-    esac
 }
 
 # main script flow

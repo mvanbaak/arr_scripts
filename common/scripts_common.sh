@@ -4,9 +4,10 @@
 
 # Shared library for arr_scripts connect scripts.
 # Sourced by tag_dvfelmel.sh, download_trailer.sh, and auto quality switch scripts.
-# Provides: load_config, check_needed_executables, radarr_api_get, get_movie_info,
-#           debug_log, get_tag_id_by_label, create_tag, movie_has_tag,
-#           add_tag_to_movie, remove_tag_from_movie, _resolve_profile_id
+# Provides: load_config, check_needed_executables, radarr_api_get, sonarr_api_get,
+#           get_movie_info, get_series_info, debug_log, lang_to_iso639_1,
+#           sanitize_filename, notify_autopulse, get_tag_id_by_label, create_tag,
+#           movie_has_tag, add_tag_to_movie, remove_tag_from_movie, _resolve_profile_id
 
 load_config() {
     # Read config from file if found.
@@ -53,6 +54,15 @@ load_config() {
     # Set defaults
     : "${RADARR_API_URL:=http://ip:7878/api/v3}"
     : "${RADARR_API_KEY:=youreallythoughtiwouldputithereright}"
+    : "${SONARR_API_URL:=http://ip:8989/api/v3}"
+    : "${SONARR_API_KEY:=youreallythoughtiwouldputithereright}"
+    : "${TMDB_API_KEY:=}"
+    : "${YT_DLP_COOKIE_FILE:=}"
+    : "${YT_DLP_FORMAT:=bv*[height<=1080][vcodec^=avc1]+ba[acodec^=mp4a]/b[height<=1080][vcodec^=avc1]}"
+    : "${AUTOPULSE_URL:=}"
+    : "${AUTOPULSE_TRIGGER:=manual}"
+    : "${AUTOPULSE_AUTH_USER:=}"
+    : "${AUTOPULSE_AUTH_PASS:=}"
 }
 
 check_needed_executables() {
@@ -78,6 +88,16 @@ radarr_api_get() {
         "${RADARR_API_URL}/$1"
 }
 
+sonarr_api_get() {
+    # Performs a GET to ${SONARR_API_URL}/${1} with X-Api-Key header
+    # Returns raw JSON output
+    curl \
+        -s \
+        -H "Accept-Encoding: application/json" \
+        -H "X-Api-Key: ${SONARR_API_KEY}" \
+        "${SONARR_API_URL}/$1"
+}
+
 get_movie_info() {
     # Fetches movie JSON from Radarr by movie ID
     # Returns the movie JSON object
@@ -96,8 +116,107 @@ get_movie_info() {
     radarr_api_get "movie/${_movie_id}"
 }
 
+get_series_info() {
+    # Fetches series JSON from Sonarr by series ID
+    # Returns the series JSON object
+    local _series_id
+
+    case "$1" in
+        ''|*[!0-9]*)
+            echo "ERROR: Argument is not a series id: $1" >&2
+            return 1
+            ;;
+        *)
+            _series_id="$1"
+            ;;
+    esac
+
+    sonarr_api_get "series/${_series_id}"
+}
+
 debug_log() {
     [ "${DEBUG}" = "true" ] && echo "DEBUG: $*" >&2
+}
+
+# Map ISO 639-2 (3-letter) to ISO 639-1 (2-letter) for common languages
+lang_to_iso639_1() {
+    case "$1" in
+        English|eng) echo "en" ;;
+        Portuguese|por) echo "pt" ;;
+        Japanese|jpn) echo "ja" ;;
+        French|fra|fre) echo "fr" ;;
+        German|deu|ger) echo "de" ;;
+        Italian|ita) echo "it" ;;
+        Spanish|spa) echo "es" ;;
+        Korean|kor) echo "ko" ;;
+        Chinese|chi|zho) echo "zh" ;;
+        Russian|rus) echo "ru" ;;
+        Hindi|hin) echo "hi" ;;
+        Arabic|ara) echo "ar" ;;
+        Turkish|tur) echo "tr" ;;
+        Dutch|nld|dut) echo "nl" ;;
+        Swedish|swe) echo "sv" ;;
+        Norwegian|nor) echo "no" ;;
+        Danish|dan) echo "da" ;;
+        Finnish|fin) echo "fi" ;;
+        Polish|pol) echo "pl" ;;
+        Greek|ell|gre) echo "el" ;;
+        Hebrew|heb) echo "he" ;;
+        Thai|tha) echo "th" ;;
+        Vietnamese|vie) echo "vi" ;;
+        Indonesian|ind) echo "id" ;;
+        Malay|mal) echo "ml" ;;
+        Tamil|tam) echo "ta" ;;
+        Telugu|tel) echo "te" ;;
+        Punjabi|pan) echo "pa" ;;
+        Persian|fas|per) echo "fa" ;;
+        Catalan|cat) echo "ca" ;;
+        Czech|cze|ces) echo "cs" ;;
+        Hungarian|hun) echo "hu" ;;
+        Romanian|ron|rum) echo "ro" ;;
+        Ukrainian|ukr) echo "uk" ;;
+        Bulgarian|bul) echo "bg" ;;
+        Croatian|hrv) echo "hr" ;;
+        Serbian|srp) echo "sr" ;;
+        Slovak|slk|slo) echo "sk" ;;
+        Slovenian|slv) echo "sl" ;;
+        Latvian|lav) echo "lv" ;;
+        Lithuanian|lit) echo "lt" ;;
+        Estonian|est) echo "et" ;;
+        *) echo "" ;;
+    esac
+}
+
+# Sanitize a name for use as a filename. Replaces invalid characters with
+# underscores and truncates to 100 characters.
+sanitize_filename() {
+    local _name
+
+    _name="$1"
+    _name=$(printf '%s' "${_name}" | tr '/\\:*?"<>|%' '_')
+    _name=$(printf '%s' "${_name}" | cut -c1-100)
+    printf '%s' "${_name}"
+}
+
+notify_autopulse() {
+    [ -z "${AUTOPULSE_URL}" ] && return 0
+    local _path _url _auth _response
+    _path="$1"
+    _url="${AUTOPULSE_URL}/triggers/${AUTOPULSE_TRIGGER}"
+    _auth=""
+    [ -n "${AUTOPULSE_AUTH_USER}" ] && _auth="-u ${AUTOPULSE_AUTH_USER}:${AUTOPULSE_AUTH_PASS}"
+    debug_log "Notifying autopulse: ${_path}"
+    # shellcheck disable=SC2086
+    _response=$(curl -s -w "\n%{http_code}" ${_auth} --get \
+        --data-urlencode "path=${_path}" \
+        "${_url}")
+    _curl_rc=$?
+    _http_code=$(printf '%s' "${_response}" | tail -1)
+    _body=$(printf '%s' "${_response}" | sed '$d')
+    case "${_http_code}" in
+        2*) debug_log "Autopulse responded: ${_http_code}" ;;
+        *) echo "WARN: Autopulse notification failed (HTTP ${_http_code}, curl exit ${_curl_rc}): ${_body}" >&2 ;;
+    esac
 }
 
 ##############################################################################
