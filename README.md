@@ -446,6 +446,10 @@ If run like this, it will loop over all movies in radarr
 and add/remove the tags where needed. Can be used to backfill
 all the tags for an existing library.
 
+Progress is printed per movie, followed by a summary line when done.
+Movies whose file was deleted but still carry a `fel` or `mel` tag
+have those stale tags removed.
+
 ### download_trailer.sh
 
 Script to be run with:
