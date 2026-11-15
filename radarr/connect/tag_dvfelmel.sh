@@ -17,6 +17,13 @@
 #
 # Script based on the work by jpalenz77 from the TRaSH discord
 #
+# Version 0.5.0 (Released 2026-11-15)
+#   * Bulk mode prints per-movie progress and a final summary
+#   * Bulk mode removes fel/mel tags from movies whose file is gone
+#   * Missing movie file removes stale tags instead of reporting a probe error
+#   * Dry-run also covers tag removal when probing fails
+#   * Bulk mode no longer sets dry-run and debug defaults (both were no-ops)
+#
 # Version 0.4.0 (Released 2026-07-23)
 #   * Replace ffmpeg+dovi_tool+grep chain with hdrprobe
 #   * Single binary, no temp files, JSON output
@@ -74,6 +81,24 @@ EVENT_TYPE="${radarr_eventtype:-"Test"}"
 MOVIE_ID="${radarr_movie_id:-0}"
 MOVIE_FILE="${radarr_moviefile_path:-""}"
 
+# Outcome of the last tag_movie call: fel, mel, none, stale or error
+TAG_RESULT=""
+
+apply_change() {
+    # Runs the tag change given as remaining arguments,
+    # or reports it when running in dry-run mode.
+    local _description
+
+    _description="$1"
+    shift
+    if [ "${DRY_RUN}" = "true" ]
+    then
+        echo "DRY-RUN: Would ${_description}" >&2
+    else
+        "$@"
+    fi
+}
+
 probe_dv_el_type() {
     local _hdrprobe_output _el_type
 
@@ -114,67 +139,125 @@ tag_movie() {
 
     _movie_id="$1"
     _movie_file="$2"
+    TAG_RESULT="error"
+
+    if [ -z "${_movie_file}" ] || [ ! -f "${_movie_file}" ]
+    then
+        debug_log "Movie file missing for movie (id: ${_movie_id})"
+        TAG_RESULT="stale"
+        apply_change "remove tag '${RADARR_TAG_FEL}' for movie ${_movie_id}" \
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        apply_change "remove tag '${RADARR_TAG_MEL}' for movie ${_movie_id}" \
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        return 0
+    fi
 
     _el_type=$(probe_dv_el_type "${_movie_file}")
     _probe_rc=$?
 
     if [ "${_probe_rc}" -ne 0 ] && [ "${_probe_rc}" -ne 1 ]
     then
-        echo "ERROR: Something went wrong trying to probe the movie file" >&2
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-        remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+        echo "ERROR: Something went wrong trying to probe '${_movie_file}'" >&2
+        apply_change "remove tag '${RADARR_TAG_FEL}' for movie ${_movie_id}" \
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+        apply_change "remove tag '${RADARR_TAG_MEL}' for movie ${_movie_id}" \
+            remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
         return 1
     fi
 
     case "${_el_type}" in
         FEL)
+            TAG_RESULT="fel"
             debug_log "FEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-            if [ "${DRY_RUN}" = "true" ]
-            then
-                echo "DRY-RUN: Would add FEL tag, remove MEL tag for movie ${_movie_id}" >&2
-            else
+            apply_change "remove tag '${RADARR_TAG_MEL}' for movie ${_movie_id}" \
                 remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
+            apply_change "add tag '${RADARR_TAG_FEL}' for movie ${_movie_id}" \
                 add_tag_to_movie "${_movie_id}" "${RADARR_TAG_FEL}"
-            fi
             ;;
         MEL)
+            TAG_RESULT="mel"
             debug_log "MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-            if [ "${DRY_RUN}" = "true" ]
-            then
-                echo "DRY-RUN: Would add MEL tag, remove FEL tag for movie ${_movie_id}" >&2
-            else
+            apply_change "remove tag '${RADARR_TAG_FEL}' for movie ${_movie_id}" \
                 remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            apply_change "add tag '${RADARR_TAG_MEL}' for movie ${_movie_id}" \
                 add_tag_to_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-            fi
             ;;
         *)
+            TAG_RESULT="none"
             debug_log "No FEL nor MEL detected for movie (id: ${_movie_id}, file: ${_movie_file})"
-            if [ "${DRY_RUN}" = "true" ]
-            then
-                echo "DRY-RUN: Would remove FEL and MEL tags for movie ${_movie_id}" >&2
-            else
+            apply_change "remove tag '${RADARR_TAG_FEL}' for movie ${_movie_id}" \
                 remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_FEL}"
+            apply_change "remove tag '${RADARR_TAG_MEL}' for movie ${_movie_id}" \
                 remove_tag_from_movie "${_movie_id}" "${RADARR_TAG_MEL}"
-            fi
             ;;
     esac
 }
 
 tag_all_movies() {
-    local _counter _movie_list
-    _counter=0
-    _movie_list=$(radarr_api_get "movie" | \
-    jq -r 'sort_by(.id)[] | select(.movieFile != null) | "\(.id) \(.movieFile.path)"')
+    local _counter _total _percent _fel _mel _none _stale _errors
+    local _fel_tag_id _mel_tag_id _movies_json _work_filter
+    local _movie_list _movie_id _movie_title _movie_file
 
-    while read -r id file; do
+    _counter=0
+    _fel=0
+    _mel=0
+    _none=0
+    _stale=0
+    _errors=0
+
+    _fel_tag_id=$(get_tag_id_by_label "${RADARR_TAG_FEL}")
+    _mel_tag_id=$(get_tag_id_by_label "${RADARR_TAG_MEL}")
+
+    # Movies without a file are only included when they still carry a tag,
+    # so stale tags from deleted files get cleaned up.
+    # shellcheck disable=SC2016 # $fel and $mel are jq variables, not shell ones
+    _work_filter='sort_by(.id)[]
+    | select(.movieFile != null or ((.tags // []) | any(. == $fel or . == $mel)))'
+
+    _movies_json=$(radarr_api_get "movie")
+    if [ -z "${_movies_json}" ]
+    then
+        echo "ERROR: No response from radarr movie API" >&2
+        return 1
+    fi
+
+    _total=$(printf '%s' "${_movies_json}" | \
+        jq --argjson fel "${_fel_tag_id:-0}" --argjson mel "${_mel_tag_id:-0}" \
+        "[${_work_filter}] | length")
+
+    if [ "${_total}" -eq 0 ]
+    then
+        echo "Bulk: nothing to process" >&2
+        return 0
+    fi
+
+    _movie_list=$(printf '%s' "${_movies_json}" | \
+        jq -r --argjson fel "${_fel_tag_id:-0}" --argjson mel "${_mel_tag_id:-0}" \
+        "${_work_filter} | [(.id|tostring), .title, (.movieFile.path // \"\")] | @tsv")
+
+    while IFS="$(printf '\t')" read -r _movie_id _movie_title _movie_file
+    do
         _counter=$((_counter+=1))
-        debug_log "(${_counter}) Tagging movie '${id}' with path '${file}'"
-        tag_movie "$id" "$file"
+        _percent=$((_counter * 100 / _total))
+        tag_movie "${_movie_id}" "${_movie_file}"
+        printf '[%4d/%4d] %3d%%  #%s  %-5s  %s\n' \
+            "${_counter}" "${_total}" "${_percent}" \
+            "${_movie_id}" "${TAG_RESULT}" "${_movie_title}" >&2
+        case "${TAG_RESULT}" in
+            fel) _fel=$((_fel+=1)) ;;
+            mel) _mel=$((_mel+=1)) ;;
+            none) _none=$((_none+=1)) ;;
+            stale) _stale=$((_stale+=1)) ;;
+            *) _errors=$((_errors+=1)) ;;
+        esac
         # lame, but be nice to our radarr api
         sleep 1
     done <<EOF
 ${_movie_list}
 EOF
+
+    printf 'Bulk: %d processed, fel %d, mel %d, none %d, stale %d, errors %d\n' \
+        "${_total}" "${_fel}" "${_mel}" "${_none}" "${_stale}" "${_errors}" >&2
 }
 
 # main script flow
@@ -224,14 +307,11 @@ case "${EVENT_TYPE}" in
         ;;
     MovieFileDelete)
         debug_log "Got event ${EVENT_TYPE}, handling"
-        if [ "${DRY_RUN}" = "true" ]
-        then
-            echo "DRY-RUN: Would remove FEL and MEL tags for movie ${MOVIE_ID}" >&2
-        else
-            # On file delete, we should delete the tags if they are attached
+        # On file delete, we should delete the tags if they are attached
+        apply_change "remove tag '${RADARR_TAG_FEL}' for movie ${MOVIE_ID}" \
             remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_FEL}"
+        apply_change "remove tag '${RADARR_TAG_MEL}' for movie ${MOVIE_ID}" \
             remove_tag_from_movie "${MOVIE_ID}" "${RADARR_TAG_MEL}"
-        fi
         exit 0
         ;;
     Download)
@@ -242,8 +322,6 @@ case "${EVENT_TYPE}" in
         # This event does not exist in radarr, but can be triggered
         # by a cli invokation of this script. eg
         # ./tag_dvfelmel.sh bulk
-        : "${DRY_RUN:=true}"
-        : "${DEBUG:=true}"
         debug_log "Got event ${EVENT_TYPE}, handling"
         tag_all_movies
         ;;
